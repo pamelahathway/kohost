@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ArrowLeft, Check } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink } from 'lucide-react'
 import { useStore } from '../../store'
 import { formatPrice } from '../../utils/formatPrice'
 import type { Guest } from '../../types'
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function GuestSummaryModal({ guest, onClose }: Props) {
-  const { cart, orders, payments, categories } = useStore()
+  const { cart, orders, payments, categories, setNavigateToGuestId } = useStore()
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -80,7 +80,7 @@ export function GuestSummaryModal({ guest, onClose }: Props) {
 
           {/* Current Order */}
           <div className="px-5 pt-4 pb-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Current Order</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-2">Current Order</p>
             {currentItems.length === 0 ? (
               <p className="text-gray-400 text-sm italic">Nothing in current order</p>
             ) : (
@@ -103,7 +103,7 @@ export function GuestSummaryModal({ guest, onClose }: Props) {
 
           {/* All Orders */}
           <div className="px-5 pt-3 pb-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">All Orders (incl. current order)</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-1">All Orders (incl. current order)</p>
             {allItems.length === 0 ? (
               <p className="text-gray-400 text-sm italic py-2">No orders yet</p>
             ) : (
@@ -114,7 +114,7 @@ export function GuestSummaryModal({ guest, onClose }: Props) {
                       {/* Paid indicator */}
                       <div className="w-5 shrink-0 flex justify-center">
                         {item.paid ? (
-                          <Check size={15} className="text-green-600" />
+                          <Check size={15} className="text-green-700" />
                         ) : (
                           <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300" />
                         )}
@@ -139,6 +139,20 @@ export function GuestSummaryModal({ guest, onClose }: Props) {
             )}
           </div>
 
+        </div>
+
+        {/* Footer — View Full Tab link */}
+        <div className="px-5 py-3 border-t border-gray-200 shrink-0">
+          <button
+            onClick={() => {
+              setNavigateToGuestId(guest.id)
+              onClose()
+            }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-green-700 hover:bg-green-50 transition-colors"
+          >
+            <ExternalLink size={15} />
+            View Full Tab
+          </button>
         </div>
       </div>
     </div>

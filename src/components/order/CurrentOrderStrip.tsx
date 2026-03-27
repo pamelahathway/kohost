@@ -26,7 +26,7 @@ export function CurrentOrderStrip() {
     >
       <div className="flex gap-4">
         {/* Label */}
-        <span className={`text-xs font-semibold uppercase tracking-wider shrink-0 mt-0.5 ${isEmpty ? 'text-gray-400' : 'text-green-700'}`}>
+        <span className={`text-sm font-semibold uppercase tracking-wider shrink-0 mt-0.5 ${isEmpty ? 'text-gray-400' : 'text-green-700'}`}>
           Current Order
         </span>
 

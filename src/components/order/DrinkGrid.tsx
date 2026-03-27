@@ -42,7 +42,7 @@ export function DrinkGrid() {
         <table className="w-full border-collapse" style={{ minWidth: `${200 + sortedCategories.length * 80}px` }}>
           <thead>
             <tr>
-              <th className="sticky top-0 left-0 z-20 text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-r border-gray-200 bg-gray-50 w-48">
+              <th className="sticky top-0 left-0 z-20 text-left px-5 py-3 text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-r border-gray-200 bg-gray-50 w-48">
                 Guest
               </th>
               {sortedCategories.map((cat) => (
@@ -50,11 +50,11 @@ export function DrinkGrid() {
                   key={cat.id}
                   className="sticky top-0 z-10 px-2 py-3 border-b border-r border-gray-200 bg-gray-50 w-20"
                 >
-                  <span className="text-xs text-gray-500 font-medium">{cat.name}</span>
+                  <span className="text-sm text-gray-500 font-medium">{cat.name}</span>
                 </th>
               ))}
               <th className="sticky top-0 z-10 border-b border-r border-gray-200 bg-gray-50 w-24" />
-              <th className="sticky top-0 z-10 px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-200 bg-gray-50">
+              <th className="sticky top-0 z-10 px-4 py-3 text-right text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-200 bg-gray-50">
                 Total
               </th>
             </tr>
@@ -94,7 +94,7 @@ export function DrinkGrid() {
                             isPaid
                               ? 'opacity-30 hover:opacity-50 hover:bg-gray-50'
                               : inCurrentOrder
-                                ? 'bg-green-50 text-green-600 hover:bg-green-100 border border-green-200'
+                                ? 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
                                 : hasOrders
                                   ? 'text-gray-500 hover:bg-gray-100'
                                   : 'text-gray-400 hover:bg-gray-100'
@@ -125,7 +125,7 @@ export function DrinkGrid() {
 
                   {/* Total */}
                   <td className="px-4 py-0 border-b border-gray-200 text-right">
-                    <span className={`font-bold text-sm ${isPaid ? 'text-gray-400' : total > 0 ? 'text-green-600' : 'text-gray-300'}`}>
+                    <span className={`font-bold text-sm ${isPaid ? 'text-gray-400' : total > 0 ? 'text-green-700' : 'text-gray-300'}`}>
                       {formatPrice(total)}
                     </span>
                   </td>

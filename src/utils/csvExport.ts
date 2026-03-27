@@ -39,6 +39,7 @@ export function exportGuestCSV(
       'Line Total': formatPrice(drink.price * order.quantity),
       Status: 'unpaid',
       'Payment Date': '',
+      'Ordered At': new Date(order.createdAt).toLocaleString(),
     })
   }
 
@@ -53,6 +54,7 @@ export function exportGuestCSV(
         'Line Total': formatPrice(item.lineTotal),
         Status: 'paid',
         'Payment Date': new Date(payment.paidAt).toLocaleString(),
+        'Ordered At': '',
       })
     }
   }
@@ -85,6 +87,7 @@ export function exportAllCSV(
         'Line Total': formatPrice(drink.price * order.quantity),
         Status: 'unpaid',
         'Payment Date': '',
+        'Ordered At': new Date(order.createdAt).toLocaleString(),
       })
     }
 
@@ -100,6 +103,7 @@ export function exportAllCSV(
           'Line Total': formatPrice(item.lineTotal),
           Status: 'paid',
           'Payment Date': new Date(payment.paidAt).toLocaleString(),
+          'Ordered At': '',
         })
       }
     }

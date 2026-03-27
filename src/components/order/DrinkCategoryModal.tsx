@@ -59,11 +59,11 @@ export function DrinkCategoryModal({ guest, category, onClose }: DrinkCategoryMo
                 <div key={drink.id} className="flex items-center gap-3 py-4 min-h-[60px] border border-gray-200 rounded-xl px-4">
 
                   {/* + icon */}
-                  <Plus size={18} className={`shrink-0 ${qty > 0 ? 'text-green-500' : 'text-gray-300'}`} />
+                  <Plus size={18} className={`shrink-0 ${qty > 0 ? 'text-green-700' : 'text-gray-300'}`} />
 
                   {/* Tap the drink row to add one */}
                   <button
-                    onClick={() => addDrinkToGuest(guest.id, drink.id)}
+                    onClick={() => { navigator.vibrate?.(10); addDrinkToGuest(guest.id, drink.id) }}
                     className="flex-1 flex items-center gap-3 text-left group min-w-0 active:scale-[0.98] transition-transform"
                   >
                     <div className="flex-1 min-w-0">

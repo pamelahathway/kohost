@@ -11,6 +11,14 @@ import type {
 } from './types'
 import { generateId } from './utils/generateId'
 
+interface UndoSnapshot {
+  orders: OrderItem[]
+  payments: PaymentRecord[]
+  guests: Guest[]
+  cart: CartItem[]
+  lastActiveGuestId: string | null
+}
+
 interface StoreState {
   eventName: string
   setupComplete: boolean
@@ -20,6 +28,16 @@ interface StoreState {
   payments: PaymentRecord[]
   cart: CartItem[]
   lastActiveGuestId: string | null
+  navigateToGuestId: string | null
+
+  // Navigation
+  setNavigateToGuestId: (guestId: string | null) => void
+
+  // Undo
+  _undoSnapshot: UndoSnapshot | null
+  undoLabel: string | null
+  undo: () => void
+  _snapshot: (label: string) => void
 
   // Event
   setEventName: (name: string) => void
@@ -88,6 +106,40 @@ export const useStore = create<StoreState>()(
       payments: [],
       cart: [],
       lastActiveGuestId: null,
+      navigateToGuestId: null,
+
+      // Navigation
+      setNavigateToGuestId: (guestId) => set({ navigateToGuestId: guestId }),
+
+      // Undo
+      _undoSnapshot: null,
+      undoLabel: null,
+      _snapshot: (label) => {
+        const s = get()
+        set({
+          _undoSnapshot: {
+            orders: s.orders,
+            payments: s.payments,
+            guests: s.guests,
+            cart: s.cart,
+            lastActiveGuestId: s.lastActiveGuestId,
+          },
+          undoLabel: label,
+        })
+      },
+      undo: () => {
+        const snap = get()._undoSnapshot
+        if (!snap) return
+        set({
+          orders: snap.orders,
+          payments: snap.payments,
+          guests: snap.guests,
+          cart: snap.cart,
+          lastActiveGuestId: snap.lastActiveGuestId,
+          _undoSnapshot: null,
+          undoLabel: null,
+        })
+      },
 
       setEventName: (name) => set({ eventName: name }),
       setSetupComplete: (v) => set({ setupComplete: v }),
@@ -225,7 +277,10 @@ export const useStore = create<StoreState>()(
       removeFromCart: (drinkId) =>
         set((s) => ({ cart: s.cart.filter((item) => item.drinkId !== drinkId) })),
 
-      clearCart: () => set({ cart: [], lastActiveGuestId: null }),
+      clearCart: () => {
+        get()._snapshot('Undo finish order')
+        set({ cart: [], lastActiveGuestId: null })
+      },
 
       assignCartToGuest: (guestId) => {
         const { cart, orders } = get()
@@ -239,7 +294,7 @@ export const useStore = create<StoreState>()(
           if (existing) {
             existing.quantity += cartItem.quantity
           } else {
-            newOrders.push({ guestId, drinkId: cartItem.drinkId, quantity: cartItem.quantity })
+            newOrders.push({ guestId, drinkId: cartItem.drinkId, quantity: cartItem.quantity, createdAt: Date.now() })
           }
         }
         set({ orders: newOrders, cart: [] })
@@ -247,12 +302,13 @@ export const useStore = create<StoreState>()(
 
       // --- Direct guest drink management ---
       addDrinkToGuest: (guestId, drinkId) => {
+        get()._snapshot('Undo add drink')
         const { orders, categories, cart, guests } = get()
         // Update committed orders
         const existing = orders.find((o) => o.guestId === guestId && o.drinkId === drinkId)
         const newOrders = existing
           ? orders.map((o) => o.guestId === guestId && o.drinkId === drinkId ? { ...o, quantity: o.quantity + 1 } : o)
-          : [...orders, { guestId, drinkId, quantity: 1 }]
+          : [...orders, { guestId, drinkId, quantity: 1, createdAt: Date.now() }]
         // If guest was marked paid, move them back to outstanding
         const guest = guests.find((g) => g.id === guestId)
         const newGuests = guest?.paid
@@ -270,6 +326,7 @@ export const useStore = create<StoreState>()(
       },
 
       removeDrinkFromGuest: (guestId, drinkId) => {
+        get()._snapshot('Undo remove drink')
         const { orders, cart } = get()
         // Only remove from cart if it was added in this session
         const cartExisting = cart.find((i) => i.guestId === guestId && i.drinkId === drinkId)
@@ -293,7 +350,7 @@ export const useStore = create<StoreState>()(
         if (existing) {
           set({ orders: orders.map((o) => o.guestId === guestId && o.drinkId === drinkId ? { ...o, quantity: o.quantity + 1 } : o) })
         } else {
-          set({ orders: [...orders, { guestId, drinkId, quantity: 1 }] })
+          set({ orders: [...orders, { guestId, drinkId, quantity: 1, createdAt: Date.now() }] })
         }
       },
 
@@ -317,7 +374,7 @@ export const useStore = create<StoreState>()(
           if (existing) {
             set({ orders: orders.map((o) => o.guestId === guestId && o.drinkId === drinkId ? { ...o, quantity } : o) })
           } else {
-            set({ orders: [...orders, { guestId, drinkId, quantity }] })
+            set({ orders: [...orders, { guestId, drinkId, quantity, createdAt: Date.now() }] })
           }
         }
       },
@@ -354,6 +411,7 @@ export const useStore = create<StoreState>()(
 
       // --- Payments ---
       markGuestPaid: (guestId) => {
+        get()._snapshot('Undo mark as paid')
         const { orders, categories, guests, payments } = get()
         const guest = guests.find((g) => g.id === guestId)
         if (!guest) return

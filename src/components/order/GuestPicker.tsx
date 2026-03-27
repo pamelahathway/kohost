@@ -5,20 +5,26 @@ import { CheckCircle2 } from 'lucide-react'
 
 interface GuestPickerProps {
   onClose: () => void
+  pendingDrinkId?: string | null
 }
 
-export function GuestPicker({ onClose }: GuestPickerProps) {
-  const { guests, assignCartToGuest } = useStore()
+export function GuestPicker({ onClose, pendingDrinkId }: GuestPickerProps) {
+  const { guests, assignCartToGuest, addDrinkToGuest } = useStore()
   const sorted = [...guests].sort((a, b) => a.sortOrder - b.sortOrder)
 
   function handleSelect(guestId: string) {
-    assignCartToGuest(guestId)
+    if (pendingDrinkId) {
+      // Quick-add flow: add the searched drink directly to this guest
+      addDrinkToGuest(guestId, pendingDrinkId)
+    } else {
+      assignCartToGuest(guestId)
+    }
     onClose()
   }
 
   return (
     <Modal
-      title="Add to which guest?"
+      title={pendingDrinkId ? 'Add drink to which guest?' : 'Add to which guest?'}
       onClose={onClose}
     >
       <div className="flex flex-col gap-2">

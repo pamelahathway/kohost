@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Pencil, Plus, Minus } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Pencil, Plus, Minus, Printer } from 'lucide-react'
 import type { Guest } from '../../types'
 import { useStore } from '../../store'
 import { formatPrice } from '../../utils/formatPrice'
@@ -12,7 +12,7 @@ interface TabDetailProps {
 }
 
 export function TabDetail({ guest, onBack }: TabDetailProps) {
-  const { getGuestLineItems, getGuestTotal, payments, markGuestPaid, reopenGuestTab, setOrderQuantity } = useStore()
+  const { eventName, getGuestLineItems, getGuestTotal, payments, markGuestPaid, reopenGuestTab, setOrderQuantity } = useStore()
   const [showConfirmPay, setShowConfirmPay] = useState(false)
   const [showHistory, setShowHistory] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -55,6 +55,82 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
     setEditing(false)
   }
 
+  // Use current line items if unpaid, or the most recent payment record if paid
+  const receiptItems = guest.paid && guestPayments.length > 0
+    ? guestPayments[guestPayments.length - 1].items.map((i) => ({
+        name: i.drinkName,
+        qty: i.quantity,
+        each: i.unitPrice,
+        lineTotal: i.lineTotal,
+      }))
+    : lineItems.map((i) => ({
+        name: i.drinkName,
+        qty: i.quantity,
+        each: i.unitPrice,
+        lineTotal: i.unitPrice * i.quantity,
+      }))
+
+  const receiptTotal = guest.paid && guestPayments.length > 0
+    ? guestPayments[guestPayments.length - 1].total
+    : total
+
+  function printReceipt() {
+    const rows = receiptItems
+      .map(
+        (i) =>
+          `<tr>
+            <td style="padding:4px 0;text-align:left">${i.name}</td>
+            <td style="padding:4px 8px;text-align:right">${i.qty}</td>
+            <td style="padding:4px 8px;text-align:right">${formatPrice(i.each)}</td>
+            <td style="padding:4px 0;text-align:right">${formatPrice(i.lineTotal)}</td>
+          </tr>`
+      )
+      .join('')
+
+    const date = guest.paidAt
+      ? new Date(guest.paidAt).toLocaleString()
+      : new Date().toLocaleString()
+
+    const html = `<!DOCTYPE html>
+<html><head><title>Receipt - ${guest.name}</title>
+<style>
+  body { font-family: monospace; max-width: 360px; margin: 24px auto; padding: 0 16px; color: #111; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h2 { font-size: 14px; font-weight: normal; color: #555; margin: 0 0 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { text-align: left; padding: 4px 0; border-bottom: 1px solid #333; font-size: 12px; text-transform: uppercase; color: #555; }
+  thead th:not(:first-child) { text-align: right; padding: 4px 8px; }
+  thead th:last-child { padding-right: 0; }
+  tbody td { font-size: 14px; }
+  tfoot td { padding-top: 8px; border-top: 1px solid #333; font-weight: bold; font-size: 16px; }
+  .date { font-size: 12px; color: #555; margin-top: 16px; }
+  .thanks { text-align: center; margin-top: 24px; font-size: 13px; color: #555; }
+  @media print { body { margin: 0; } }
+</style>
+</head><body>
+  <h1>${eventName}</h1>
+  <h2>${guest.name}</h2>
+  <table>
+    <thead>
+      <tr><th>Item</th><th style="text-align:right;padding:4px 8px">Qty</th><th style="text-align:right;padding:4px 8px">Each</th><th style="text-align:right;padding-right:0">Total</th></tr>
+    </thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr><td colspan="3" style="text-align:right;padding:8px 8px 0 0">Total</td><td style="text-align:right;padding-top:8px;border-top:1px solid #333">${formatPrice(receiptTotal)}</td></tr>
+    </tfoot>
+  </table>
+  <p class="date">${date}</p>
+  <p class="thanks">Thank you!</p>
+  <script>window.onload=function(){window.print()}</script>
+</body></html>`
+
+    const w = window.open('', '_blank')
+    if (w) {
+      w.document.write(html)
+      w.document.close()
+    }
+  }
+
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Header */}
@@ -68,7 +144,7 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
         <div className="flex-1">
           <h2 className="text-lg font-semibold text-gray-900">{guest.name}</h2>
           {guest.paid && (
-            <p className="text-green-600 text-xs flex items-center gap-1">
+            <p className="text-green-700 text-xs flex items-center gap-1">
               <CheckCircle2 size={12} /> Paid {guest.paidAt ? new Date(guest.paidAt).toLocaleString() : ''}
             </p>
           )}
@@ -139,7 +215,7 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
                 <tfoot>
                   <tr className="border-t border-gray-200 bg-gray-50">
                     <td colSpan={editing ? 5 : 4} className="px-4 py-3 text-gray-900 font-bold text-right">Total</td>
-                    <td className="px-4 py-3 text-green-600 font-bold text-right text-base">{formatPrice(editTotal)}</td>
+                    <td className="px-4 py-3 text-green-700 font-bold text-right text-base">{formatPrice(editTotal)}</td>
                     {editing && <td />}
                   </tr>
                 </tfoot>
@@ -163,7 +239,7 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
                 {guestPayments.map((payment) => (
                   <div key={payment.id} className="bg-white rounded-xl overflow-hidden border border-gray-200">
                     <div className="px-4 py-2 bg-green-50 border-b border-gray-200 flex justify-between items-center">
-                      <span className="text-green-600 text-sm font-medium flex items-center gap-1.5">
+                      <span className="text-green-700 text-sm font-medium flex items-center gap-1.5">
                         <CheckCircle2 size={14} /> Paid
                       </span>
                       <span className="text-gray-400 text-xs">{new Date(payment.paidAt).toLocaleString()}</span>
@@ -182,7 +258,7 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
                       <tfoot>
                         <tr className="border-t border-gray-200 bg-gray-50">
                           <td colSpan={3} className="px-4 py-2 text-gray-700 font-bold text-right">Total paid</td>
-                          <td className="px-4 py-2 text-green-600 font-bold text-right">{formatPrice(payment.total)}</td>
+                          <td className="px-4 py-2 text-green-700 font-bold text-right">{formatPrice(payment.total)}</td>
                         </tr>
                       </tfoot>
                     </table>
@@ -197,19 +273,31 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
       {/* Footer actions */}
       <div className="px-6 py-4 border-t border-gray-200 flex gap-3 shrink-0 bg-gray-50">
         {guest.paid ? (
-          <Button variant="secondary" onClick={() => reopenGuestTab(guest.id)} className="flex items-center gap-2">
-            <RotateCcw size={16} /> Reopen Tab
-          </Button>
+          <>
+            <Button variant="secondary" onClick={() => reopenGuestTab(guest.id)} className="flex items-center gap-2">
+              <RotateCcw size={16} /> Reopen Tab
+            </Button>
+            <Button variant="ghost" onClick={printReceipt} className="flex items-center gap-2">
+              <Printer size={16} /> Print Receipt
+            </Button>
+          </>
         ) : (
-          <Button
-            variant="success"
-            size="lg"
-            disabled={lineItems.length === 0 || editing}
-            onClick={() => setShowConfirmPay(true)}
-            className="flex items-center gap-2"
-          >
-            <CheckCircle2 size={18} /> Mark as Paid — {formatPrice(total)}
-          </Button>
+          <>
+            <Button
+              variant="success"
+              size="lg"
+              disabled={lineItems.length === 0 || editing}
+              onClick={() => setShowConfirmPay(true)}
+              className="flex items-center gap-2"
+            >
+              <CheckCircle2 size={18} /> Mark as Paid — {formatPrice(total)}
+            </Button>
+            {lineItems.length > 0 && !editing && (
+              <Button variant="ghost" onClick={printReceipt} className="flex items-center gap-2">
+                <Printer size={16} /> Print Receipt
+              </Button>
+            )}
+          </>
         )}
       </div>
 

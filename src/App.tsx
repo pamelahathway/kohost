@@ -1,14 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { AppTab } from './types'
 import { useStore } from './store'
 import { TopBar } from './components/layout/TopBar'
+import { UndoToast } from './components/shared/UndoToast'
 import { SetupScreen } from './components/setup/SetupScreen'
 import { OverviewScreen } from './components/order/OverviewScreen'
 import { GuestOverview } from './components/guests/GuestOverview'
+import { EventDashboard } from './components/dashboard/EventDashboard'
 
 export default function App() {
-  const { setupComplete, eventName } = useStore()
+  const { setupComplete, eventName, navigateToGuestId, setNavigateToGuestId } = useStore()
   const [currentTab, setCurrentTab] = useState<AppTab>(setupComplete ? 'order' : 'setup')
+
+  // Handle cross-tab navigation requests (e.g., from GuestSummaryModal "View Full Tab")
+  useEffect(() => {
+    if (navigateToGuestId) {
+      setCurrentTab('guests')
+    }
+  }, [navigateToGuestId])
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -17,7 +26,9 @@ export default function App() {
         {currentTab === 'setup' && <SetupScreen onDone={() => setCurrentTab('order')} />}
         {currentTab === 'order' && <OverviewScreen />}
         {currentTab === 'guests' && <GuestOverview />}
+        {currentTab === 'dashboard' && <EventDashboard />}
       </div>
+      <UndoToast />
     </div>
   )
 }

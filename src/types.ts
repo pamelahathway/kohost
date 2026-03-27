@@ -25,6 +25,7 @@ export interface OrderItem {
   guestId: string
   drinkId: string
   quantity: number
+  createdAt: number // Date.now() timestamp
 }
 
 export interface PaidLineItem {
@@ -53,4 +54,4 @@ export interface CartItem {
   quantity: number
 }
 
-export type AppTab = 'order' | 'guests' | 'setup'
+export type AppTab = 'order' | 'guests' | 'dashboard' | 'setup'
