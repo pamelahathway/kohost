@@ -8,7 +8,7 @@ import { Button } from '../shared/Button'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 
 export function GuestOverview() {
-  const { guests, getEventTotal, getGuestTotal, markGuestPaid, navigateToGuestId, setNavigateToGuestId } = useStore()
+  const { guests, payments, getEventTotal, getGuestTotal, markGuestPaid, navigateToGuestId, setNavigateToGuestId } = useStore()
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null)
 
   // Handle navigation from other tabs (e.g. GuestSummaryModal "View Full Tab")
@@ -24,9 +24,10 @@ export function GuestOverview() {
   const [showConfirmBulk, setShowConfirmBulk] = useState(false)
 
   const sorted = [...guests].sort((a, b) => a.name.localeCompare(b.name))
+  const hasPaymentHistory = (id: string) => payments.some((p) => p.guestId === id)
   const outstandingGuests = sorted.filter((g) => !g.paid && getGuestTotal(g.id) > 0)
-  const noPaymentGuests  = sorted.filter((g) => !g.paid && getGuestTotal(g.id) === 0)
-  const paidGuests       = sorted.filter((g) => g.paid)
+  const noPaymentGuests  = sorted.filter((g) => !g.paid && getGuestTotal(g.id) === 0 && !hasPaymentHistory(g.id))
+  const paidGuests       = sorted.filter((g) => g.paid || (!g.paid && getGuestTotal(g.id) === 0 && hasPaymentHistory(g.id)))
   const eventTotal = getEventTotal()
 
   const allSelected = outstandingGuests.length > 0 && outstandingGuests.every((g) => selectedIds.has(g.id))
@@ -139,7 +140,7 @@ export function GuestOverview() {
                   )}
                   <button
                     onClick={exitSelectionMode}
-                    className={`text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors ${selectedIds.size === 0 ? 'ml-auto' : ''}`}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors ${selectedIds.size === 0 ? 'ml-auto' : ''}`}
                   >
                     Cancel
                   </button>
@@ -164,7 +165,20 @@ export function GuestOverview() {
         {/* No payment needed */}
         {noPaymentGuests.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">No Payment Needed</h3>
+            <div className="flex items-center gap-3 mb-3">
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">No Payment Needed</h3>
+              <button
+                onClick={() => {
+                  for (const g of noPaymentGuests) {
+                    markGuestPaid(g.id)
+                  }
+                }}
+                className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+              >
+                <CheckSquare size={14} className="text-green-600" />
+                Mark All as Paid
+              </button>
+            </div>
             <div className="flex flex-col gap-2">
               {noPaymentGuests.map((guest) => (
                 <GuestRow key={guest.id} guest={guest} onClick={() => setSelectedGuest(guest)} />

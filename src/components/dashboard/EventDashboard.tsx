@@ -9,6 +9,7 @@ export function EventDashboard() {
   const categories = useStore((s) => s.categories)
 
   const [showZeroDrinks, setShowZeroDrinks] = useState(true)
+  const [showZeroGuests, setShowZeroGuests] = useState(true)
 
   const stats = useMemo(() => {
     const allDrinks = categories.flatMap((c) =>
@@ -113,6 +114,13 @@ export function EventDashboard() {
       }
     }
 
+    // Include all guests, even those with zero spend
+    for (const g of guests) {
+      if (!guestSpendMap.has(g.id)) {
+        guestSpendMap.set(g.id, { name: g.name, total: 0 })
+      }
+    }
+
     const guestSpendSorted = [...guestSpendMap.values()].sort(
       (a, b) => b.total - a.total
     )
@@ -133,6 +141,10 @@ export function EventDashboard() {
   const visibleDrinks = showZeroDrinks
     ? stats.allDrinksSorted
     : stats.allDrinksSorted.filter((d) => d.quantity > 0)
+
+  const visibleGuests = showZeroGuests
+    ? stats.guestSpendSorted
+    : stats.guestSpendSorted.filter((g) => g.total > 0)
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -214,14 +226,24 @@ export function EventDashboard() {
         </Card>
 
         {/* Spend by Guest bar chart */}
-        <Card label="Spend by Guest">
-          {stats.guestSpendSorted.length === 0 ? (
+        <Card
+          label="Spend by Guest"
+          action={
+            <button
+              onClick={() => setShowZeroGuests((v) => !v)}
+              className="text-xs font-medium text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md px-2 py-0.5 transition-colors"
+            >
+              {showZeroGuests ? 'Hide zero' : 'Show all'}
+            </button>
+          }
+        >
+          {visibleGuests.length === 0 ? (
             <span className="text-gray-400 text-sm">No guest spend yet</span>
           ) : (
             <div className="space-y-2 mt-1">
               {(() => {
-                const max = Math.max(...stats.guestSpendSorted.map((g) => g.total), 1)
-                return stats.guestSpendSorted.map((g) => (
+                const max = Math.max(...visibleGuests.map((g) => g.total), 1)
+                return visibleGuests.map((g) => (
                   <div key={g.name} className="flex items-center gap-3">
                     <span className="text-sm text-gray-700 font-medium w-32 shrink-0 truncate">
                       {g.name}

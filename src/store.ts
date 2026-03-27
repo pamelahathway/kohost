@@ -302,7 +302,6 @@ export const useStore = create<StoreState>()(
 
       // --- Direct guest drink management ---
       addDrinkToGuest: (guestId, drinkId) => {
-        get()._snapshot('Undo add drink')
         const { orders, categories, cart, guests } = get()
         // Update committed orders
         const existing = orders.find((o) => o.guestId === guestId && o.drinkId === drinkId)
@@ -326,8 +325,7 @@ export const useStore = create<StoreState>()(
       },
 
       removeDrinkFromGuest: (guestId, drinkId) => {
-        get()._snapshot('Undo remove drink')
-        const { orders, cart } = get()
+        const { orders, cart, guests, payments } = get()
         // Only remove from cart if it was added in this session
         const cartExisting = cart.find((i) => i.guestId === guestId && i.drinkId === drinkId)
         if (!cartExisting) return  // not in current order, nothing to remove
@@ -341,7 +339,14 @@ export const useStore = create<StoreState>()(
           : existing.quantity <= 1
             ? orders.filter((o) => !(o.guestId === guestId && o.drinkId === drinkId))
             : orders.map((o) => o.guestId === guestId && o.drinkId === drinkId ? { ...o, quantity: o.quantity - 1 } : o)
-        set({ orders: newOrders, cart: newCart })
+        // Re-mark as paid if guest has no remaining orders but has payment history
+        const guestHasOrders = newOrders.some((o) => o.guestId === guestId && o.quantity > 0)
+        const guest = guests.find((g) => g.id === guestId)
+        const hasPaidBefore = payments.some((p) => p.guestId === guestId)
+        const newGuests = (!guestHasOrders && guest && !guest.paid && hasPaidBefore)
+          ? guests.map((g) => g.id === guestId ? { ...g, paid: true, paidAt: new Date().toISOString() } : g)
+          : guests
+        set({ orders: newOrders, cart: newCart, guests: newGuests })
       },
 
       incrementOrder: (guestId, drinkId) => {
@@ -355,28 +360,39 @@ export const useStore = create<StoreState>()(
       },
 
       decrementOrder: (guestId, drinkId) => {
-        const { orders } = get()
+        const { orders, guests, payments } = get()
         const existing = orders.find((o) => o.guestId === guestId && o.drinkId === drinkId)
         if (!existing) return
-        if (existing.quantity <= 1) {
-          set({ orders: orders.filter((o) => !(o.guestId === guestId && o.drinkId === drinkId)) })
-        } else {
-          set({ orders: orders.map((o) => o.guestId === guestId && o.drinkId === drinkId ? { ...o, quantity: o.quantity - 1 } : o) })
-        }
+        const newOrders = existing.quantity <= 1
+          ? orders.filter((o) => !(o.guestId === guestId && o.drinkId === drinkId))
+          : orders.map((o) => o.guestId === guestId && o.drinkId === drinkId ? { ...o, quantity: o.quantity - 1 } : o)
+        const guestHasOrders = newOrders.some((o) => o.guestId === guestId && o.quantity > 0)
+        const guest = guests.find((g) => g.id === guestId)
+        const hasPaidBefore = payments.some((p) => p.guestId === guestId)
+        const newGuests = (!guestHasOrders && guest && !guest.paid && hasPaidBefore)
+          ? guests.map((g) => g.id === guestId ? { ...g, paid: true, paidAt: new Date().toISOString() } : g)
+          : guests
+        set({ orders: newOrders, guests: newGuests })
       },
 
       setOrderQuantity: (guestId, drinkId, quantity) => {
-        const { orders } = get()
-        if (quantity <= 0) {
-          set({ orders: orders.filter((o) => !(o.guestId === guestId && o.drinkId === drinkId)) })
-        } else {
-          const existing = orders.find((o) => o.guestId === guestId && o.drinkId === drinkId)
-          if (existing) {
-            set({ orders: orders.map((o) => o.guestId === guestId && o.drinkId === drinkId ? { ...o, quantity } : o) })
-          } else {
-            set({ orders: [...orders, { guestId, drinkId, quantity, createdAt: Date.now() }] })
-          }
-        }
+        const { orders, guests, payments } = get()
+        const newOrders = quantity <= 0
+          ? orders.filter((o) => !(o.guestId === guestId && o.drinkId === drinkId))
+          : (() => {
+              const existing = orders.find((o) => o.guestId === guestId && o.drinkId === drinkId)
+              if (existing) {
+                return orders.map((o) => o.guestId === guestId && o.drinkId === drinkId ? { ...o, quantity } : o)
+              }
+              return [...orders, { guestId, drinkId, quantity, createdAt: Date.now() }]
+            })()
+        const guestHasOrders = newOrders.some((o) => o.guestId === guestId && o.quantity > 0)
+        const guest = guests.find((g) => g.id === guestId)
+        const hasPaidBefore = payments.some((p) => p.guestId === guestId)
+        const newGuests = (!guestHasOrders && guest && !guest.paid && hasPaidBefore)
+          ? guests.map((g) => g.id === guestId ? { ...g, paid: true, paidAt: new Date().toISOString() } : g)
+          : guests
+        set({ orders: newOrders, guests: newGuests })
       },
 
       getCategoryCartCount: (guestId, categoryId) => {
