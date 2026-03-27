@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle2, ChevronRight, Users } from 'lucide-react'
+import { CheckCircle2, CheckSquare, ChevronRight, Users } from 'lucide-react'
 import { useStore } from '../../store'
 import type { Guest } from '../../types'
 import { formatPrice } from '../../utils/formatPrice'
@@ -20,6 +20,7 @@ export function GuestOverview() {
     }
   }, [navigateToGuestId])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [selectionMode, setSelectionMode] = useState(false)
   const [showConfirmBulk, setShowConfirmBulk] = useState(false)
 
   const sorted = [...guests].sort((a, b) => a.name.localeCompare(b.name))
@@ -47,12 +48,17 @@ export function GuestOverview() {
     }
   }
 
+  function exitSelectionMode() {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
+  }
+
   function handleBulkPay() {
     for (const id of selectedIds) {
       markGuestPaid(id)
     }
-    setSelectedIds(new Set())
     setShowConfirmBulk(false)
+    exitSelectionMode()
   }
 
   const selectedTotal = outstandingGuests
@@ -98,25 +104,46 @@ export function GuestOverview() {
         {outstandingGuests.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
-                />
-                <h3 className="text-sm font-semibold text-orange-400 uppercase tracking-wider">Outstanding</h3>
-              </label>
-              {selectedIds.size > 0 && (
-                <Button
-                  variant="success"
-                  size="sm"
-                  onClick={() => setShowConfirmBulk(true)}
-                  className="ml-auto flex items-center gap-1.5"
+              {selectionMode && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+                  />
+                </label>
+              )}
+              <h3 className="text-sm font-semibold text-orange-400 uppercase tracking-wider">Outstanding</h3>
+              {!selectionMode && outstandingGuests.length > 1 && (
+                <button
+                  onClick={() => setSelectionMode(true)}
+                  className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
                 >
-                  <CheckCircle2 size={14} />
-                  Mark {selectedIds.size} as Paid — {formatPrice(selectedTotal)}
-                </Button>
+                  <CheckSquare size={14} className="text-green-600" />
+                  Bulk Pay
+                </button>
+              )}
+              {selectionMode && (
+                <>
+                  {selectedIds.size > 0 && (
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={() => setShowConfirmBulk(true)}
+                      className="ml-auto flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 size={14} />
+                      Mark {selectedIds.size} as Paid — {formatPrice(selectedTotal)}
+                    </Button>
+                  )}
+                  <button
+                    onClick={exitSelectionMode}
+                    className={`text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors ${selectedIds.size === 0 ? 'ml-auto' : ''}`}
+                  >
+                    Cancel
+                  </button>
+                </>
               )}
             </div>
             <div className="flex flex-col gap-2">
@@ -125,7 +152,7 @@ export function GuestOverview() {
                   key={guest.id}
                   guest={guest}
                   onClick={() => setSelectedGuest(guest)}
-                  selectable
+                  selectable={selectionMode}
                   selected={selectedIds.has(guest.id)}
                   onToggle={() => toggleGuest(guest.id)}
                 />

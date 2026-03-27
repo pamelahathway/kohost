@@ -6,6 +6,7 @@ const AVAILABLE_ICONS = [
   'Citrus', 'Grape', 'IceCream2', 'Cookie', 'Candy', 'Sandwich',
   'Pizza', 'Salad', 'Soup', 'UtensilsCrossed', 'GlassWater',
   'Martini', 'Cocktail', 'Package', 'ShoppingBag', 'Gift',
+  'BottleWine', 'CupSoda',
 ]
 
 interface IconPickerProps {

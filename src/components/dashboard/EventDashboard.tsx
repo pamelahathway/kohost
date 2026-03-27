@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore } from '../../store'
 import { formatPrice } from '../../utils/formatPrice'
 
@@ -7,6 +7,8 @@ export function EventDashboard() {
   const orders = useStore((s) => s.orders)
   const payments = useStore((s) => s.payments)
   const categories = useStore((s) => s.categories)
+
+  const [showZeroDrinks, setShowZeroDrinks] = useState(true)
 
   const stats = useMemo(() => {
     const allDrinks = categories.flatMap((c) =>
@@ -64,120 +66,185 @@ export function EventDashboard() {
       0
     )
 
-    const topDrinks = [...drinkCounts.values()]
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5)
+    // Build full drink list from menu, including zero-sales items
+    const allMenuDrinks = allDrinks.map((d) => ({
+      name: d.name,
+      quantity: drinkCounts.get(d.name)?.quantity ?? 0,
+    }))
+    // Also include any drinks from drinkCounts that aren't in the current menu
+    // (e.g. from payment records for drinks that were removed)
+    for (const [name, entry] of drinkCounts) {
+      if (!allMenuDrinks.some((d) => d.name === name)) {
+        allMenuDrinks.push({ name, quantity: entry.quantity })
+      }
+    }
+    const allDrinksSorted = allMenuDrinks.sort((a, b) => b.quantity - a.quantity)
 
     // Guest stats
     const totalGuests = guests.length
     const paidGuests = guests.filter((g) => g.paid).length
     const outstandingGuests = totalGuests - paidGuests
 
-    // Guests who ordered = guests with active orders OR payment records
-    const guestIdsWithOrders = new Set([
-      ...orders.filter((o) => o.quantity > 0).map((o) => o.guestId),
-      ...payments.map((p) => p.guestId),
-    ])
-    const guestsWhoOrdered = guestIdsWithOrders.size
+    // Guest spend data: outstanding amounts from orders + paid amounts from payments
+    const guestSpendMap = new Map<string, { name: string; total: number }>()
 
-    const avgSpend =
-      guestsWhoOrdered > 0 ? Math.round(combinedTotal / guestsWhoOrdered) : 0
+    // Add outstanding amounts from active orders
+    for (const o of orders) {
+      if (o.quantity <= 0) continue
+      const guest = guests.find((g) => g.id === o.guestId)
+      if (!guest || guest.paid) continue
+      const drink = drinkMap.get(o.drinkId)
+      const amount = (drink?.price ?? 0) * o.quantity
+      const existing = guestSpendMap.get(o.guestId)
+      if (existing) {
+        existing.total += amount
+      } else {
+        guestSpendMap.set(o.guestId, { name: guest.name, total: amount })
+      }
+    }
+
+    // Add paid amounts from payment records
+    for (const p of payments) {
+      const existing = guestSpendMap.get(p.guestId)
+      if (existing) {
+        existing.total += p.total
+      } else {
+        guestSpendMap.set(p.guestId, { name: p.guestName, total: p.total })
+      }
+    }
+
+    const guestSpendSorted = [...guestSpendMap.values()].sort(
+      (a, b) => b.total - a.total
+    )
 
     return {
       paidTotal,
       outstandingTotal,
       combinedTotal,
       totalDrinksServed,
-      topDrinks,
+      allDrinksSorted,
       totalGuests,
       paidGuests,
       outstandingGuests,
-      guestsWhoOrdered,
-      avgSpend,
+      guestSpendSorted,
     }
   }, [guests, orders, payments, categories])
+
+  const visibleDrinks = showZeroDrinks
+    ? stats.allDrinksSorted
+    : stats.allDrinksSorted.filter((d) => d.quantity > 0)
 
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Revenue row */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card label="Total Revenue" large>
-            <span className="text-4xl font-black text-gray-900">
+        {/* Top tiles row */}
+        <div className="grid grid-cols-4 gap-3">
+          <Card label="Drinks Served">
+            <span className="text-3xl font-black text-gray-900">
+              {stats.totalDrinksServed}
+            </span>
+          </Card>
+          <Card label="Total Revenue">
+            <span className="text-3xl font-black text-gray-900">
               {formatPrice(stats.combinedTotal)}
+            </span>
+            <span className="text-xs text-gray-400 mt-0.5">
+              ({stats.totalGuests} guest{stats.totalGuests !== 1 ? 's' : ''})
             </span>
           </Card>
           <Card label="Paid">
             <span className="text-3xl font-bold text-green-600">
               {formatPrice(stats.paidTotal)}
             </span>
+            <span className="text-xs text-gray-400 mt-0.5">
+              ({stats.paidGuests} guest{stats.paidGuests !== 1 ? 's' : ''})
+            </span>
           </Card>
           <Card label="Outstanding">
             <span className="text-3xl font-bold text-amber-600">
               {formatPrice(stats.outstandingTotal)}
             </span>
-          </Card>
-        </div>
-
-        {/* Drinks + average spend row */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card label="Drinks Served">
-            <span className="text-4xl font-black text-gray-900">
-              {stats.totalDrinksServed}
-            </span>
-          </Card>
-          <Card label="Avg Spend per Guest">
-            <span className="text-4xl font-black text-gray-900">
-              {formatPrice(stats.avgSpend)}
-            </span>
-            <span className="text-sm text-gray-400 mt-1">
-              across {stats.guestsWhoOrdered} guest{stats.guestsWhoOrdered !== 1 ? 's' : ''}
+            <span className="text-xs text-gray-400 mt-0.5">
+              ({stats.outstandingGuests} guest{stats.outstandingGuests !== 1 ? 's' : ''})
             </span>
           </Card>
         </div>
 
-        {/* Bottom row: top drinks + guest stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card label="Most Popular Drinks">
-            {stats.topDrinks.length === 0 ? (
-              <span className="text-gray-400 text-sm">No orders yet</span>
-            ) : (
-              <ol className="space-y-2 mt-1">
-                {stats.topDrinks.map((d, i) => (
-                  <li
-                    key={d.name}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="text-gray-700 font-medium">
-                      <span className="text-gray-400 mr-2 text-sm">
-                        {i + 1}.
-                      </span>
+        {/* Drink breakdown bar chart */}
+        <Card
+          label="Drink Breakdown"
+          action={
+            <button
+              onClick={() => setShowZeroDrinks((v) => !v)}
+              className="text-xs font-medium text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md px-2 py-0.5 transition-colors"
+            >
+              {showZeroDrinks ? 'Hide zero' : 'Show all'}
+            </button>
+          }
+        >
+          {visibleDrinks.length === 0 ? (
+            <span className="text-gray-400 text-sm">No drinks on menu</span>
+          ) : (
+            <div className="space-y-2 mt-1">
+              {(() => {
+                const max = Math.max(...visibleDrinks.map((d) => d.quantity), 1)
+                return visibleDrinks.map((d) => (
+                  <div key={d.name} className="flex items-center gap-3">
+                    <span className="text-sm text-gray-700 font-medium w-32 shrink-0 truncate">
                       {d.name}
                     </span>
-                    <span className="text-lg font-bold text-gray-900">
+                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                      {d.quantity > 0 && (
+                        <div
+                          className="h-full rounded-full bg-green-500"
+                          style={{
+                            width: `${Math.max((d.quantity / max) * 100, 2)}%`,
+                          }}
+                        />
+                      )}
+                    </div>
+                    <span className="text-sm font-bold text-gray-900 w-8 text-right shrink-0">
                       {d.quantity}
                     </span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </Card>
-          <Card label="Guest Stats">
-            <div className="space-y-3 mt-1">
-              <StatRow label="Total guests" value={stats.totalGuests} />
-              <StatRow
-                label="Paid"
-                value={stats.paidGuests}
-                color="text-green-600"
-              />
-              <StatRow
-                label="Outstanding"
-                value={stats.outstandingGuests}
-                color="text-amber-600"
-              />
+                  </div>
+                ))
+              })()}
             </div>
-          </Card>
-        </div>
+          )}
+        </Card>
+
+        {/* Spend by Guest bar chart */}
+        <Card label="Spend by Guest">
+          {stats.guestSpendSorted.length === 0 ? (
+            <span className="text-gray-400 text-sm">No guest spend yet</span>
+          ) : (
+            <div className="space-y-2 mt-1">
+              {(() => {
+                const max = Math.max(...stats.guestSpendSorted.map((g) => g.total), 1)
+                return stats.guestSpendSorted.map((g) => (
+                  <div key={g.name} className="flex items-center gap-3">
+                    <span className="text-sm text-gray-700 font-medium w-32 shrink-0 truncate">
+                      {g.name}
+                    </span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                      {g.total > 0 && (
+                        <div
+                          className="h-full rounded-full bg-amber-500"
+                          style={{
+                            width: `${Math.max((g.total / max) * 100, 2)}%`,
+                          }}
+                        />
+                      )}
+                    </div>
+                    <span className="text-sm font-bold text-gray-900 w-16 text-right shrink-0">
+                      {formatPrice(g.total)}
+                    </span>
+                  </div>
+                ))
+              })()}
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   )
@@ -185,40 +252,22 @@ export function EventDashboard() {
 
 function Card({
   label,
-  large,
   children,
+  action,
 }: {
   label: string
-  large?: boolean
   children: React.ReactNode
+  action?: React.ReactNode
 }) {
   return (
-    <div
-      className={`bg-white border border-gray-200 rounded-2xl p-5 ${
-        large ? 'col-span-1' : ''
-      }`}
-    >
-      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-        {label}
+    <div className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+          {label}
+        </div>
+        {action}
       </div>
       <div className="flex flex-col">{children}</div>
-    </div>
-  )
-}
-
-function StatRow({
-  label,
-  value,
-  color = 'text-gray-900',
-}: {
-  label: string
-  value: number
-  color?: string
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-gray-500 text-sm">{label}</span>
-      <span className={`text-2xl font-bold ${color}`}>{value}</span>
     </div>
   )
 }

@@ -39,21 +39,29 @@ export function DrinkGrid() {
   return (
     <>
       <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse" style={{ minWidth: `${200 + sortedCategories.length * 80}px` }}>
+        <table className="w-full border-collapse table-fixed" style={{ minWidth: `${200 + sortedCategories.length * 100}px` }}>
+          <colgroup>
+            <col style={{ width: '192px' }} />
+            {sortedCategories.map((cat) => (
+              <col key={cat.id} />
+            ))}
+            <col style={{ width: '96px' }} />
+            <col style={{ width: '80px' }} />
+          </colgroup>
           <thead>
             <tr>
-              <th className="sticky top-0 left-0 z-20 text-left px-5 py-3 text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-r border-gray-200 bg-gray-50 w-48">
+              <th className="sticky top-0 left-0 z-20 text-left px-5 py-3 text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-r border-gray-200 bg-gray-50">
                 Guest
               </th>
               {sortedCategories.map((cat) => (
                 <th
                   key={cat.id}
-                  className="sticky top-0 z-10 px-2 py-3 border-b border-r border-gray-200 bg-gray-50 w-20"
+                  className="sticky top-0 z-10 px-2 py-3 border-b border-r border-gray-200 bg-gray-50 text-center"
                 >
-                  <span className="text-sm text-gray-500 font-medium">{cat.name}</span>
+                  <span className="text-sm text-gray-500 font-medium truncate block">{cat.name}</span>
                 </th>
               ))}
-              <th className="sticky top-0 z-10 border-b border-r border-gray-200 bg-gray-50 w-24" />
+              <th className="sticky top-0 z-10 border-b border-r border-gray-200 bg-gray-50" />
               <th className="sticky top-0 z-10 px-4 py-3 text-right text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-200 bg-gray-50">
                 Total
               </th>
@@ -100,7 +108,7 @@ export function DrinkGrid() {
                                   : 'text-gray-400 hover:bg-gray-100'
                           }`}
                         >
-                          {renderIcon(cat.icon, 22)}
+                          {renderIcon(cat.icon, 32)}
                           {committedCount > 0 && (
                             <span className={`absolute bottom-1 right-1 ${inCurrentOrder ? 'bg-green-600' : 'bg-gray-500'} text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center`}>
                               {committedCount}
