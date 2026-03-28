@@ -298,11 +298,18 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
             <Button
               variant="success"
               size="lg"
-              disabled={lineItems.length === 0 || editing}
-              onClick={() => setShowConfirmPay(true)}
+              disabled={editing}
+              onClick={() => {
+                if (lineItems.length === 0) {
+                  // No drinks — mark paid directly without payment modal
+                  markGuestPaid(guest.id)
+                } else {
+                  setShowConfirmPay(true)
+                }
+              }}
               className="flex items-center gap-2"
             >
-              <CheckCircle2 size={18} /> Mark as Paid — {formatPrice(total)}
+              <CheckCircle2 size={18} /> Mark as Paid{total > 0 ? ` — ${formatPrice(total)}` : ''}
             </Button>
             {lineItems.length > 0 && !editing && (
               <Button variant="ghost" onClick={printReceipt} className="flex items-center gap-2">

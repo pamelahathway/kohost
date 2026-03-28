@@ -153,13 +153,8 @@ export function EventDashboard() {
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Top tiles row */}
-        <div className="grid grid-cols-4 gap-3">
-          <Card label="Drinks Served">
-            <span className="text-3xl font-black text-gray-900">
-              {stats.totalDrinksServed}
-            </span>
-          </Card>
+        {/* Top tiles */}
+        <div className="grid grid-cols-3 gap-3">
           <Card label="Total Revenue">
             <span className="text-3xl font-black text-gray-900">
               {formatPrice(stats.combinedTotal)}
@@ -185,8 +180,13 @@ export function EventDashboard() {
             </span>
           </Card>
         </div>
-        {stats.tipsTotal > 0 && (
-          <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
+          <Card label="Drinks Served">
+            <span className="text-3xl font-black text-gray-900">
+              {stats.totalDrinksServed}
+            </span>
+          </Card>
+          {stats.tipsTotal > 0 && (
             <Card label="Tips Collected">
               <span className="text-3xl font-bold text-purple-600">
                 {formatPrice(stats.tipsTotal)}
@@ -195,8 +195,8 @@ export function EventDashboard() {
                 Total received: {formatPrice(stats.paidTotal + stats.tipsTotal)}
               </span>
             </Card>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Drink breakdown bar chart */}
         <Card

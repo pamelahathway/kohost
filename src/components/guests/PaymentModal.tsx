@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { formatPrice, parsePriceInput } from '../../utils/formatPrice'
 import { Button } from '../shared/Button'
@@ -14,21 +14,26 @@ export function PaymentModal({ guestName, tabTotal, onConfirm, onCancel }: Payme
   const [inputValue, setInputValue] = useState((tabTotal / 100).toFixed(2))
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    // Select all text on mount for easy overwrite
-    inputRef.current?.select()
-  }, [])
-
   const amountCents = parsePriceInput(inputValue)
   const tip = amountCents - tabTotal
   const isValid = amountCents >= tabTotal
 
+  function handleConfirm() {
+    if (!isValid) return
+    // Blur input first to dismiss iPad keyboard before acting
+    inputRef.current?.blur()
+    onConfirm(amountCents)
+  }
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-[400px] mx-4 border border-gray-200">
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-[400px] mx-4 border border-gray-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Mark as Paid</h2>
           <p className="text-sm text-gray-500 mt-0.5">{guestName}</p>
@@ -52,7 +57,7 @@ export function PaymentModal({ guestName, tabTotal, onConfirm, onCancel }: Payme
                 inputMode="decimal"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && isValid) onConfirm(amountCents) }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirm() }}
                 className="w-full pl-8 pr-4 py-3 text-xl font-bold text-right border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
@@ -75,7 +80,7 @@ export function PaymentModal({ guestName, tabTotal, onConfirm, onCancel }: Payme
           <Button
             variant="success"
             disabled={!isValid}
-            onClick={() => onConfirm(amountCents)}
+            onClick={handleConfirm}
             className="flex items-center gap-2"
           >
             <CheckCircle2 size={16} /> Confirm Payment

@@ -11,6 +11,7 @@ import { EventDashboard } from './components/dashboard/EventDashboard'
 export default function App() {
   const { setupComplete, eventName, navigateToGuestId, setNavigateToGuestId } = useStore()
   const [currentTab, setCurrentTab] = useState<AppTab>(setupComplete ? 'order' : 'setup')
+  const [guestViewKey, setGuestViewKey] = useState(0)
 
   // Handle cross-tab navigation requests (e.g., from GuestSummaryModal "View Full Tab")
   useEffect(() => {
@@ -21,11 +22,14 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <TopBar currentTab={currentTab} onTabChange={setCurrentTab} eventName={eventName} />
+      <TopBar currentTab={currentTab} onTabChange={(tab) => {
+        if (tab === 'guests') setGuestViewKey((k) => k + 1)
+        setCurrentTab(tab)
+      }} eventName={eventName} />
       <div className="flex-1 overflow-hidden">
         {currentTab === 'setup' && <SetupScreen onDone={() => setCurrentTab('order')} />}
         {currentTab === 'order' && <OverviewScreen />}
-        {currentTab === 'guests' && <GuestOverview />}
+        {currentTab === 'guests' && <GuestOverview key={guestViewKey} />}
         {currentTab === 'dashboard' && <EventDashboard />}
       </div>
       <UndoToast />

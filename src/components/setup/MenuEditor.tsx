@@ -146,27 +146,30 @@ function CategoryRow({ category, expanded, editing, onToggle, onStartEdit, onSto
             <DrinkRow key={drink.id} drink={drink} onUpdate={onUpdateDrink} onRemove={onRemoveDrink} />
           ))}
           {showNewDrink ? (
-            <div className="flex gap-2 items-center mt-1">
-              <input
-                autoFocus
-                className="flex-1 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm outline-none border border-gray-300 focus:border-green-500"
-                placeholder="Drink name"
-                value={newDrinkName}
-                onChange={(e) => setNewDrinkName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleAddDrink() }}
-              />
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
+            <div className="mt-1">
+              <div className="flex gap-2 items-center">
                 <input
-                  className="w-24 bg-white text-gray-900 rounded-lg pl-6 pr-3 py-2 text-sm outline-none border border-gray-300 focus:border-green-500"
-                  placeholder="0.00"
-                  value={newDrinkPrice}
-                  onChange={(e) => setNewDrinkPrice(e.target.value)}
+                  autoFocus
+                  className="flex-1 min-w-0 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm outline-none border border-gray-300 focus:border-green-500"
+                  placeholder="Drink name"
+                  value={newDrinkName}
+                  onChange={(e) => setNewDrinkName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddDrink() }}
                 />
+                <div className="relative shrink-0">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
+                  <input
+                    className="w-20 bg-white text-gray-900 rounded-lg pl-6 pr-2 py-2 text-sm outline-none border border-gray-300 focus:border-green-500"
+                    placeholder="0.00"
+                    inputMode="decimal"
+                    value={newDrinkPrice}
+                    onChange={(e) => setNewDrinkPrice(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddDrink() }}
+                  />
+                </div>
+                <button onClick={() => setShowNewDrink(false)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0"><X size={16} /></button>
+                <button onClick={handleAddDrink} className="p-2 rounded-lg hover:bg-gray-100 text-green-600 shrink-0"><Check size={16} /></button>
               </div>
-              <button onClick={() => setShowNewDrink(false)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
-              <button onClick={handleAddDrink} className="p-2 rounded-lg hover:bg-gray-100 text-green-600"><Check size={16} /></button>
             </div>
           ) : (
             <button
