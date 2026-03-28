@@ -44,7 +44,8 @@ export function exportGuestCSV(
   }
 
   for (const payment of payments.filter(p => p.guestId === guest.id)) {
-    for (const item of payment.items) {
+    for (const [i, item] of payment.items.entries()) {
+      const tip = (payment.amountPaid ?? payment.total) - payment.total
       rows.push({
         Guest: guest.name,
         Drink: item.drinkName,
@@ -53,6 +54,8 @@ export function exportGuestCSV(
         'Unit Price': formatPrice(item.unitPrice),
         'Line Total': formatPrice(item.lineTotal),
         Status: 'paid',
+        'Amount Paid': i === 0 ? formatPrice(payment.amountPaid ?? payment.total) : '',
+        Tip: i === 0 && tip > 0 ? formatPrice(tip) : '',
         'Payment Date': new Date(payment.paidAt).toLocaleString(),
         'Ordered At': '',
       })
@@ -93,7 +96,8 @@ export function exportAllCSV(
 
     // One row per drink in every payment record
     for (const payment of payments.filter(p => p.guestId === guest.id)) {
-      for (const item of payment.items) {
+      for (const [i, item] of payment.items.entries()) {
+        const tip = (payment.amountPaid ?? payment.total) - payment.total
         rows.push({
           Guest: guest.name,
           Drink: item.drinkName,
@@ -102,6 +106,8 @@ export function exportAllCSV(
           'Unit Price': formatPrice(item.unitPrice),
           'Line Total': formatPrice(item.lineTotal),
           Status: 'paid',
+          'Amount Paid': i === 0 ? formatPrice(payment.amountPaid ?? payment.total) : '',
+          Tip: i === 0 && tip > 0 ? formatPrice(tip) : '',
           'Payment Date': new Date(payment.paidAt).toLocaleString(),
           'Ordered At': '',
         })
@@ -133,15 +139,18 @@ export function exportGuestListCSV(
           return sum + (drink?.price ?? 0) * o.quantity
         }, 0)
 
-      const totalPaid = payments
-        .filter(p => p.guestId === guest.id)
-        .reduce((sum, p) => sum + p.total, 0)
+      const guestPayments = payments.filter(p => p.guestId === guest.id)
+      const totalPaid = guestPayments.reduce((sum, p) => sum + p.total, 0)
+      const totalReceived = guestPayments.reduce((sum, p) => sum + (p.amountPaid ?? p.total), 0)
+      const tips = totalReceived - totalPaid
 
       return {
         Guest: guest.name,
         Status: guest.paid ? 'paid' : 'outstanding',
         'Outstanding': formatPrice(outstanding),
         'Total Paid': formatPrice(totalPaid),
+        'Tips': tips > 0 ? formatPrice(tips) : '',
+        'Total Received': formatPrice(totalReceived > 0 ? totalReceived : outstanding),
         'Total Consumed': formatPrice(outstanding + totalPaid),
       }
     })

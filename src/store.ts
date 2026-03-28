@@ -84,7 +84,7 @@ interface StoreState {
   resetEvent: () => void
 
   // Payments
-  markGuestPaid: (guestId: string) => void
+  markGuestPaid: (guestId: string, amountPaid?: number) => void
   reopenGuestTab: (guestId: string) => void
 
   // Derived helpers
@@ -426,7 +426,7 @@ export const useStore = create<StoreState>()(
       },
 
       // --- Payments ---
-      markGuestPaid: (guestId) => {
+      markGuestPaid: (guestId, amountPaid?) => {
         get()._snapshot('Undo mark as paid')
         const { orders, categories, guests, payments } = get()
         const guest = guests.find((g) => g.id === guestId)
@@ -454,6 +454,7 @@ export const useStore = create<StoreState>()(
           guestName: guest.name,
           items,
           total,
+          amountPaid: amountPaid ?? total,
           paidAt: new Date().toISOString(),
         }
 
@@ -536,7 +537,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'kohost-tab-tracker',
-      version: 1,
+      version: 2,
       // Don't persist cart — it's transient
       partialize: (state) => ({
         eventName: state.eventName,
@@ -546,6 +547,18 @@ export const useStore = create<StoreState>()(
         orders: state.orders,
         payments: state.payments,
       }),
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as Record<string, unknown>
+        if (version < 2) {
+          // Add amountPaid to existing payment records (default to total)
+          const payments = (state.payments as PaymentRecord[]) ?? []
+          state.payments = payments.map((p) => ({
+            ...p,
+            amountPaid: p.amountPaid ?? p.total,
+          }))
+        }
+        return state as never
+      },
     }
   )
 )

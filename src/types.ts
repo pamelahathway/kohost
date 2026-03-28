@@ -41,7 +41,8 @@ export interface PaymentRecord {
   guestId: string
   guestName: string
   items: PaidLineItem[]
-  total: number // cents
+  total: number // cents (tab total)
+  amountPaid: number // cents (actual amount collected, may include tip)
   paidAt: string // ISO timestamp
 }
 

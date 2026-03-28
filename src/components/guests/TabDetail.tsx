@@ -4,7 +4,7 @@ import type { Guest } from '../../types'
 import { useStore } from '../../store'
 import { formatPrice } from '../../utils/formatPrice'
 import { Button } from '../shared/Button'
-import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { PaymentModal } from './PaymentModal'
 
 interface TabDetailProps {
   guest: Guest
@@ -49,8 +49,8 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
     ? displayItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
     : total
 
-  function handleMarkPaid() {
-    markGuestPaid(guest.id)
+  function handleMarkPaid(amountPaidCents: number) {
+    markGuestPaid(guest.id, amountPaidCents)
     setShowConfirmPay(false)
     setEditing(false)
   }
@@ -257,9 +257,21 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
                       </tbody>
                       <tfoot>
                         <tr className="border-t border-gray-200 bg-gray-50">
-                          <td colSpan={3} className="px-4 py-2 text-gray-700 font-bold text-right">Total paid</td>
+                          <td colSpan={3} className="px-4 py-2 text-gray-700 font-bold text-right">Tab total</td>
                           <td className="px-4 py-2 text-green-700 font-bold text-right">{formatPrice(payment.total)}</td>
                         </tr>
+                        {payment.amountPaid > payment.total && (
+                          <>
+                            <tr className="bg-gray-50">
+                              <td colSpan={3} className="px-4 py-1 text-gray-500 text-sm text-right">Amount paid</td>
+                              <td className="px-4 py-1 text-gray-700 text-sm text-right">{formatPrice(payment.amountPaid)}</td>
+                            </tr>
+                            <tr className="bg-green-50">
+                              <td colSpan={3} className="px-4 py-1 text-green-600 text-sm font-medium text-right">Tip</td>
+                              <td className="px-4 py-1 text-green-600 text-sm font-medium text-right">{formatPrice(payment.amountPaid - payment.total)}</td>
+                            </tr>
+                          </>
+                        )}
                       </tfoot>
                     </table>
                   </div>
@@ -302,11 +314,9 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
       </div>
 
       {showConfirmPay && (
-        <ConfirmDialog
-          title="Mark as Paid"
-          message={`Confirm payment of ${formatPrice(total)} for ${guest.name}? Their tab will be cleared and recorded in history.`}
-          confirmLabel="Confirm Payment"
-          variant="success"
+        <PaymentModal
+          guestName={guest.name}
+          tabTotal={total}
           onConfirm={handleMarkPaid}
           onCancel={() => setShowConfirmPay(false)}
         />

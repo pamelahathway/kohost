@@ -195,6 +195,7 @@ describe('Store - Payment flow', () => {
     expect(payments).toHaveLength(1)
     expect(payments[0].guestName).toBe('Alice')
     expect(payments[0].total).toBe(500) // 2 x 250
+    expect(payments[0].amountPaid).toBe(500) // defaults to total
     expect(payments[0].items).toHaveLength(1)
     expect(payments[0].items[0].drinkName).toBe('Espresso')
     expect(payments[0].items[0].quantity).toBe(2)
@@ -216,6 +217,21 @@ describe('Store - Payment flow', () => {
     const guest = useStore.getState().guests.find(g => g.id === alice.id)!
     expect(guest.paid).toBe(false)
     expect(guest.paidAt).toBeNull()
+  })
+
+  it('records custom amountPaid for tips', () => {
+    const state = setupBasicEvent()
+    const alice = state.guests[0]
+    const espresso = state.categories[0].drinks[0]
+
+    useStore.getState().addDrinkToGuest(alice.id, espresso.id) // 250 cents
+    useStore.setState({ cart: [] })
+    useStore.getState().markGuestPaid(alice.id, 300) // paid 300, tab was 250
+
+    const { payments } = useStore.getState()
+    expect(payments[0].total).toBe(250)
+    expect(payments[0].amountPaid).toBe(300)
+    // Tip = 300 - 250 = 50
   })
 
   it('marks guest with no orders as paid (no payment needed)', () => {

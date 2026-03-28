@@ -31,6 +31,9 @@ export function EventDashboard() {
     // Paid totals from payment records
     const paidTotal = payments.reduce((sum, p) => sum + p.total, 0)
 
+    // Tips collected (amountPaid - total for each payment)
+    const tipsTotal = payments.reduce((sum, p) => sum + Math.max(0, (p.amountPaid ?? p.total) - p.total), 0)
+
     const combinedTotal = paidTotal + outstandingTotal
 
     // Drink counts: combine active orders + payment records
@@ -129,6 +132,7 @@ export function EventDashboard() {
       paidTotal,
       outstandingTotal,
       combinedTotal,
+      tipsTotal,
       totalDrinksServed,
       allDrinksSorted,
       totalGuests,
@@ -181,6 +185,18 @@ export function EventDashboard() {
             </span>
           </Card>
         </div>
+        {stats.tipsTotal > 0 && (
+          <div className="grid grid-cols-4 gap-3">
+            <Card label="Tips Collected">
+              <span className="text-3xl font-bold text-purple-600">
+                {formatPrice(stats.tipsTotal)}
+              </span>
+              <span className="text-xs text-gray-400 mt-0.5">
+                Total received: {formatPrice(stats.paidTotal + stats.tipsTotal)}
+              </span>
+            </Card>
+          </div>
+        )}
 
         {/* Drink breakdown bar chart */}
         <Card
