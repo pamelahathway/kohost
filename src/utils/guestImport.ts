@@ -34,10 +34,33 @@ export function parseGuestImport(text: string): string[] | null {
     }
   }
 
-  // Otherwise treat as CSV / plain text — one name per line
+  // Otherwise treat as CSV / plain text
   const lines = trimmed.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0)
   if (lines.length === 0) return null
 
+  // Detect multi-column CSV: if the first line contains commas, parse as CSV
+  if (lines[0].includes(',')) {
+    const header = lines[0].toLowerCase().split(',').map((h) => h.trim())
+    // Find the "guest" or "name" column
+    const guestCol = header.findIndex((h) => h === 'guest' || h === 'name')
+    if (guestCol >= 0) {
+      // Extract names from that column, skipping the header
+      const names = lines.slice(1)
+        .map((line) => {
+          const cols = line.split(',')
+          return cols[guestCol]?.trim() ?? ''
+        })
+        .filter((n) => n.length > 0)
+      return names.length > 0 ? names : null
+    }
+    // No recognized header — treat first column as names, skip header if it looks like one
+    const names = lines.slice(1)
+      .map((line) => line.split(',')[0]?.trim() ?? '')
+      .filter((n) => n.length > 0)
+    return names.length > 0 ? names : null
+  }
+
+  // Plain text — one name per line
   // Strip header row if it looks like one
   if (/^name$/i.test(lines[0])) {
     lines.shift()
