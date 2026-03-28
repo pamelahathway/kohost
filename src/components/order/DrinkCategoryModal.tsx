@@ -32,10 +32,13 @@ export function DrinkCategoryModal({ guest, category, onClose }: DrinkCategoryMo
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/25"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-[520px] max-h-[85vh] flex flex-col mx-4 overflow-hidden">
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-[520px] max-h-[85vh] flex flex-col mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
 
         {/* Header — guest badge + total on same row */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
@@ -56,21 +59,17 @@ export function DrinkCategoryModal({ guest, category, onClose }: DrinkCategoryMo
               const qty = getQty(drink.id)
               const lineTotal = qty * drink.price
               return (
-                <div key={drink.id} className="flex items-center gap-3 py-4 min-h-[60px] border border-gray-200 rounded-xl px-4">
+                <div key={drink.id} className="flex items-center gap-0 min-h-[60px] border border-gray-200 rounded-xl overflow-hidden">
 
-                  {/* + icon */}
-                  <Plus size={18} className={`shrink-0 ${qty > 0 ? 'text-green-700' : 'text-gray-300'}`} />
-
-                  {/* Tap the drink row to add one */}
+                  {/* Tap to add — covers +, name, and price */}
                   <button
                     onClick={() => { navigator.vibrate?.(10); addDrinkToGuest(guest.id, drink.id) }}
-                    className="flex-1 flex items-center gap-3 text-left group min-w-0 active:scale-[0.98] transition-transform"
+                    className="flex-1 flex items-center gap-3 text-left min-w-0 px-4 py-4 active:bg-green-50 transition-colors"
                   >
-                    <div className="flex-1 min-w-0">
-                      <span className="text-gray-900 font-medium group-hover:text-green-700 transition-colors">
-                        {drink.name}
-                      </span>
-                    </div>
+                    <Plus size={18} className={`shrink-0 ${qty > 0 ? 'text-green-700' : 'text-gray-400'}`} />
+                    <span className="flex-1 min-w-0 text-gray-900 font-medium">
+                      {drink.name}
+                    </span>
                     <span className="text-gray-400 text-sm shrink-0">{formatPrice(drink.price)}</span>
                   </button>
 
