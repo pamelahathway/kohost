@@ -421,6 +421,40 @@ describe('Store - Reset', () => {
   })
 })
 
+describe('Store - Event management', () => {
+  beforeEach(resetStore)
+
+  it('startNewEvent clears everything including categories', () => {
+    setupBasicEvent()
+    useStore.getState().startNewEvent()
+    const after = useStore.getState()
+    expect(after.eventName).toBe('My Event')
+    expect(after.categories).toHaveLength(0)
+    expect(after.guests).toHaveLength(0)
+    expect(after.orders).toHaveLength(0)
+    expect(after.payments).toHaveLength(0)
+    expect(after.setupComplete).toBe(false)
+  })
+
+  it('loadEvent replaces all data and sets setupComplete', () => {
+    setupBasicEvent()
+    useStore.getState().loadEvent({
+      eventName: 'Loaded Event',
+      categories: [],
+      guests: [{ id: 'g1', name: 'Charlie', sortOrder: 0, paid: false, paidAt: null }],
+      orders: [],
+      payments: [],
+    })
+    const after = useStore.getState()
+    expect(after.eventName).toBe('Loaded Event')
+    expect(after.categories).toHaveLength(0)
+    expect(after.guests).toHaveLength(1)
+    expect(after.guests[0].name).toBe('Charlie')
+    expect(after.setupComplete).toBe(true)
+    expect(after.cart).toHaveLength(0)
+  })
+})
+
 describe('Store - Menu import', () => {
   beforeEach(resetStore)
 

@@ -10,6 +10,7 @@ import type {
   CartItem,
 } from './types'
 import { generateId } from './utils/generateId'
+import { saveEvent as saveEventToStorage, type EventData } from './utils/eventStorage'
 
 interface UndoSnapshot {
   orders: OrderItem[]
@@ -82,6 +83,11 @@ interface StoreState {
 
   // Reset
   resetEvent: () => void
+
+  // Event management
+  saveCurrentEvent: () => string
+  loadEvent: (data: EventData) => void
+  startNewEvent: () => void
 
   // Payments
   markGuestPaid: (guestId: string, amountPaid?: number) => void
@@ -414,6 +420,40 @@ export const useStore = create<StoreState>()(
           payments: [],
           cart: [],
           lastActiveGuestId: null,
+        }),
+
+      // --- Event management ---
+      saveCurrentEvent: () => {
+        const { eventName, categories, guests, orders, payments } = get()
+        return saveEventToStorage({ eventName, categories, guests, orders, payments })
+      },
+
+      loadEvent: (data) =>
+        set({
+          eventName: data.eventName,
+          categories: data.categories,
+          guests: data.guests,
+          orders: data.orders,
+          payments: data.payments,
+          cart: [],
+          lastActiveGuestId: null,
+          _undoSnapshot: null,
+          undoLabel: null,
+          setupComplete: true,
+        }),
+
+      startNewEvent: () =>
+        set({
+          eventName: 'My Event',
+          setupComplete: false,
+          categories: [],
+          guests: [],
+          orders: [],
+          payments: [],
+          cart: [],
+          lastActiveGuestId: null,
+          _undoSnapshot: null,
+          undoLabel: null,
         }),
 
       // --- Menu import ---

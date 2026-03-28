@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Upload, FileJson, FileText, Trash2, ChevronDown, Package } from 'lucide-react'
+import { Upload, FileJson, FileText, Trash2, ChevronDown, Package, FolderOpen } from 'lucide-react'
 import { useStore } from '../../store'
 import { MenuEditor } from './MenuEditor'
 import { GuestEditor } from './GuestEditor'
@@ -7,13 +7,15 @@ import { exportMenuJSON, importMenuJSON } from '../../utils/menuExport'
 import { exportAllCSV, exportGuestListCSV } from '../../utils/csvExport'
 import { parseGuestImport } from '../../utils/guestImport'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { EventManager } from './EventManager'
 
 interface SetupScreenProps {
   onDone: () => void
 }
 
 export function SetupScreen({ onDone }: SetupScreenProps) {
-  const { eventName, setEventName, categories, guests, orders, payments, resetEvent } = useStore()
+  const { eventName, setEventName, categories, guests, orders, payments, resetEvent, startNewEvent } = useStore()
+  const [showEventManager, setShowEventManager] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(eventName)
   const [showImportConfirm, setShowImportConfirm] = useState(false)
@@ -200,6 +202,12 @@ export function SetupScreen({ onDone }: SetupScreenProps) {
             )}
           </div>
 
+          {/* Events */}
+          <button onClick={() => setShowEventManager(true)} className={btnClass}>
+            <FolderOpen size={14} className="text-green-700" />
+            Events
+          </button>
+
           {/* Reset — pushed to far right */}
           <button
             onClick={() => setShowResetConfirm(true)}
@@ -242,6 +250,13 @@ export function SetupScreen({ onDone }: SetupScreenProps) {
           variant="success"
           onConfirm={handleConfirmGuestImport}
           onCancel={() => { setShowGuestImportConfirm(false); setPendingGuestImport(null) }}
+        />
+      )}
+
+      {showEventManager && (
+        <EventManager
+          onClose={() => setShowEventManager(false)}
+          onNewEvent={() => { startNewEvent(); setShowEventManager(false) }}
         />
       )}
 
