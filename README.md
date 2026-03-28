@@ -1,73 +1,51 @@
-# React + TypeScript + Vite
+# KoHost
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A lightweight, offline-capable iPad web app for running a drinks tab at a pop-up event. Food is included in the ticket price; drinks are ordered throughout the day and guests settle up before they leave.
 
-Currently, two official plugins are available:
+Built for a single operator (the host) behind the bar to record drink orders and mark guests as paid. Designed for single-event use with 20-50 guests, no backend needed.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Getting Started
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev          # starts on http://localhost:5173
+npm run build        # production build to dist/
+npm run preview      # preview production build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Screens
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **Overview** — Main working screen. A grid with guests as rows and drink categories as columns. Tap a cell to add drinks. A running total strip shows the active order.
+- **Guests** — Guest list split into Outstanding, No Payment Needed, and Paid sections. Tap a guest to see their tab, edit orders, view payment history, or print a receipt.
+- **Dashboard** — Revenue tiles, drink breakdown bar chart, and spend-by-guest chart.
+- **Setup** — Event name, menu editor (categories + drinks), guest list editor, import/export (JSON menus, CSV data), and event reset.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Tech Stack
+
+| Layer   | Technology                              |
+| ------- | --------------------------------------- |
+| Build   | Vite 8                                  |
+| UI      | React 19, TypeScript 5.9               |
+| Styling | Tailwind CSS v4 (CSS-first)            |
+| State   | Zustand 5 with localStorage persistence |
+| Icons   | lucide-react                            |
+| CSV     | papaparse                               |
+| PWA     | vite-plugin-pwa + workbox               |
+
+## Key Design Decisions
+
+- **Cents-based pricing** — All prices stored as integer cents to avoid floating-point issues. Displayed in EUR.
+- **Offline-first PWA** — Service worker caches all assets. Works without network after first load.
+- **Payment snapshots** — When a guest is marked as paid, drink names are captured so payment history survives menu edits.
+- **Transient cart** — The in-progress order is not persisted to localStorage (intentional — it represents the current interaction only).
+- **Single-store architecture** — All state lives in one Zustand store persisted to `localStorage`.
+
+## Import/Export
+
+- **Menu**: JSON format with categories and drinks (prices in cents)
+- **Guest list**: JSON array of names, or plain text (one name per line)
+- **CSV exports**: Orders & Payments (per-drink-line detail), Guest List (per-guest summary with totals)
+
+## License
+
+MIT
