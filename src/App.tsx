@@ -9,7 +9,7 @@ import { GuestOverview } from './components/guests/GuestOverview'
 import { EventDashboard } from './components/dashboard/EventDashboard'
 
 export default function App() {
-  const { setupComplete, eventName, navigateToGuestId, setNavigateToGuestId } = useStore()
+  const { setupComplete, eventName, navigateToGuestId } = useStore()
   const [currentTab, setCurrentTab] = useState<AppTab>(setupComplete ? 'order' : 'setup')
   const [guestViewKey, setGuestViewKey] = useState(0)
 

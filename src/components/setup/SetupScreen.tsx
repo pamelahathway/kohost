@@ -20,7 +20,7 @@ interface SetupScreenProps {
   onDone: () => void
 }
 
-export function SetupScreen({ onDone }: SetupScreenProps) {
+export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
   const { eventName, setEventName, categories, guests, orders, payments, saveCurrentEvent, loadEvent, startNewEvent } = useStore()
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(eventName)
