@@ -21,7 +21,7 @@ interface SetupScreenProps {
 }
 
 export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
-  const { eventName, setEventName, categories, guests, orders, payments, saveCurrentEvent, loadEvent, startNewEvent } = useStore()
+  const { eventName, setEventName, categories, guests, orders, payments, setupComplete, setSetupComplete, saveCurrentEvent, loadEvent, startNewEvent } = useStore()
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(eventName)
 
@@ -116,6 +116,7 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
   function handleNewEvent() {
     setConfirmNew(false)
     startNewEvent()
+    setSetupComplete(true)
     setNameInput('My Event')
     setStartOpen(false)
   }
@@ -243,8 +244,8 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
               )}
             </div>
 
-            {/* Save Event dropdown */}
-            <div className="relative" ref={saveRef}>
+            {/* Save Event dropdown — only when an event exists */}
+            {setupComplete && <div className="relative" ref={saveRef}>
               <button
                 onClick={() => { setSaveOpen(!saveOpen); setStartOpen(false) }}
                 className={btnClass}
@@ -270,7 +271,7 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
                   </button>
                 </div>
               )}
-            </div>
+            </div>}
           </div>
 
           {/* Line 3: Saved events toggle button */}
@@ -327,7 +328,7 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
         </div>
 
         {/* ============ CURRENT EVENT SECTION ============ */}
-        <div className="px-6 pt-4">
+        {setupComplete && <div className="px-6 pt-4">
           {/* Section label + event name */}
           <div className="flex items-center gap-3 mb-2">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Current Event</h3>
@@ -410,7 +411,7 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
             <MenuEditor />
             <GuestEditor />
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Confirm dialogs */}

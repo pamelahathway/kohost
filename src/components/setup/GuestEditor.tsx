@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react'
 import { useStore } from '../../store'
 import { Button } from '../shared/Button'
+import { ConfirmDialog } from '../shared/ConfirmDialog'
 
 export function GuestEditor() {
   const { guests, addGuest, updateGuest, removeGuest } = useStore()
@@ -9,6 +10,7 @@ export function GuestEditor() {
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const sorted = [...guests].sort((a, b) => a.name.localeCompare(b.name))
 
@@ -78,12 +80,26 @@ export function GuestEditor() {
               <>
                 <span className="flex-1 text-gray-900 text-sm font-medium">{guest.name}</span>
                 <button onClick={() => startEdit(guest.id, guest.name)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><Edit2 size={15} /></button>
-                <button onClick={() => removeGuest(guest.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-red-400"><Trash2 size={15} /></button>
+                <button onClick={() => setConfirmDeleteId(guest.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-red-400"><Trash2 size={15} /></button>
               </>
             )}
           </div>
         ))}
       </div>
+
+      {confirmDeleteId && (() => {
+        const guest = guests.find((g) => g.id === confirmDeleteId)
+        return (
+          <ConfirmDialog
+            title="Delete Guest"
+            message={`Remove "${guest?.name ?? 'this guest'}" from the event? Any orders and payment history for this guest will also be removed.`}
+            confirmLabel="Delete"
+            variant="danger"
+            onConfirm={() => { removeGuest(confirmDeleteId); setConfirmDeleteId(null) }}
+            onCancel={() => setConfirmDeleteId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }
