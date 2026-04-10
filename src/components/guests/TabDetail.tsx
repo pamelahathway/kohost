@@ -5,6 +5,7 @@ import { useStore } from '../../store'
 import { formatPrice } from '../../utils/formatPrice'
 import { Button } from '../shared/Button'
 import { PaymentModal } from './PaymentModal'
+import { autoBackup } from '../../utils/autoBackup'
 
 interface TabDetailProps {
   guest: Guest
@@ -51,6 +52,7 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
 
   function handleMarkPaid(amountPaidCents: number) {
     markGuestPaid(guest.id, amountPaidCents)
+    autoBackup()
     setShowConfirmPay(false)
     setEditing(false)
   }
@@ -303,6 +305,7 @@ export function TabDetail({ guest, onBack }: TabDetailProps) {
                 if (lineItems.length === 0) {
                   // No drinks — mark paid directly without payment modal
                   markGuestPaid(guest.id)
+                  autoBackup()
                 } else {
                   setShowConfirmPay(true)
                 }

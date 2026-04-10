@@ -15,13 +15,14 @@ import {
   importEventJSON,
   type SavedEventMeta,
 } from '../../utils/eventStorage'
+import { restoreFromCloud, testCloudBackup } from '../../utils/autoBackup'
 
 interface SetupScreenProps {
   onDone: () => void
 }
 
 export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
-  const { eventName, setEventName, categories, guests, orders, payments, setupComplete, setSetupComplete, saveCurrentEvent, loadEvent, startNewEvent } = useStore()
+  const { eventName, setEventName, categories, guests, orders, payments, setupComplete, setSetupComplete, saveCurrentEvent, loadEvent, startNewEvent, cloudBackupUrl, cloudBackupSecret, setCloudBackupUrl, setCloudBackupSecret } = useStore()
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(eventName)
 
@@ -49,6 +50,11 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
   const guestImportRef = useRef<HTMLInputElement>(null)
   const importRef = useRef<HTMLDivElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
+
+  // Cloud backup
+  const [cloudTestResult, setCloudTestResult] = useState<{ ok: boolean; error?: string } | null>(null)
+  const [cloudRestoring, setCloudRestoring] = useState(false)
+  const [confirmCloudRestore, setConfirmCloudRestore] = useState(false)
 
   // Close all dropdowns on outside click
   useEffect(() => {
@@ -201,6 +207,26 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
     setShowGuestImportConfirm(false)
   }
 
+  async function handleTestCloud() {
+    setCloudTestResult(null)
+    const result = await testCloudBackup()
+    setCloudTestResult(result)
+    setTimeout(() => setCloudTestResult(null), 4000)
+  }
+
+  async function handleCloudRestore() {
+    setCloudRestoring(true)
+    const result = await restoreFromCloud()
+    setCloudRestoring(false)
+    setConfirmCloudRestore(false)
+    if (typeof result === 'string') {
+      alert(`Restore failed: ${result}`)
+    } else {
+      loadEvent(result as Parameters<typeof loadEvent>[0])
+      setNameInput(result.eventName)
+    }
+  }
+
   const btnClass = 'flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors'
   const dropdownItemClass = 'flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors'
 
@@ -325,6 +351,61 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
                   ))}
             </div>
           )}
+        </div>
+
+        {/* ============ CLOUD BACKUP SECTION ============ */}
+        <div className="border-b border-gray-200 px-6 py-4">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Cloud Backup</h3>
+          <p className="text-xs text-gray-400 mb-3">
+            Backups are sent automatically after every order and payment. Configure your Cloudflare Worker URL and secret below.
+          </p>
+          <div className="flex flex-col gap-3 max-w-lg">
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Worker URL</label>
+              <input
+                type="url"
+                placeholder="https://kohost-backup.yourname.workers.dev"
+                value={cloudBackupUrl}
+                onChange={(e) => setCloudBackupUrl(e.target.value.trim())}
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Secret</label>
+              <input
+                type="text"
+                placeholder="shared secret"
+                value={cloudBackupSecret}
+                onChange={(e) => setCloudBackupSecret(e.target.value)}
+                autoCorrect="off"
+                autoCapitalize="off"
+                autoComplete="off"
+                spellCheck={false}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={handleTestCloud} className={btnClass}>
+                Test Connection
+              </button>
+              <button
+                onClick={() => setConfirmCloudRestore(true)}
+                disabled={!cloudBackupUrl || !cloudBackupSecret}
+                className={`${btnClass} ${!cloudBackupUrl || !cloudBackupSecret ? 'opacity-40 cursor-not-allowed' : ''}`}
+              >
+                <Download size={14} className="text-green-700" />
+                Restore from Cloud
+              </button>
+              {cloudTestResult && (
+                <span className={`text-xs font-medium ${cloudTestResult.ok ? 'text-green-600' : 'text-red-500'}`}>
+                  {cloudTestResult.ok ? 'Connected!' : cloudTestResult.error}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* ============ CURRENT EVENT SECTION ============ */}
@@ -467,6 +548,17 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
           variant="danger"
           onConfirm={handleNewEvent}
           onCancel={() => setConfirmNew(false)}
+        />
+      )}
+
+      {confirmCloudRestore && (
+        <ConfirmDialog
+          title="Restore from Cloud"
+          message={cloudRestoring ? 'Restoring...' : 'This will replace your current event with the latest cloud backup. Make sure to save first if you want to keep your current data.'}
+          confirmLabel={cloudRestoring ? 'Restoring...' : 'Restore'}
+          variant="success"
+          onConfirm={handleCloudRestore}
+          onCancel={() => setConfirmCloudRestore(false)}
         />
       )}
     </div>

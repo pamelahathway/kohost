@@ -1,0 +1,11 @@
+name = "kohost-backup"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[[kv_namespaces]]
+binding = "BACKUP_KV"
+id = "460c6bd94ef54586971b74a62ceb6207"
+
+# Set this secret via: npx wrangler secret put BACKUP_SECRET
+# [vars]
+# BACKUP_SECRET = "set-via-wrangler-secret"

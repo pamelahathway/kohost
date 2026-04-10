@@ -6,6 +6,7 @@ import { formatPrice } from '../../utils/formatPrice'
 import { DrinkCategoryModal } from './DrinkCategoryModal'
 import { GuestSummaryModal } from './GuestSummaryModal'
 import { Users } from 'lucide-react'
+import { autoBackup } from '../../utils/autoBackup'
 
 export function DrinkGrid() {
   const { guests, categories, getCategoryCartCount, getCategoryCountForGuest, getGuestTotal, lastActiveGuestId, clearCart, cart } = useStore()
@@ -123,7 +124,7 @@ export function DrinkGrid() {
                   <td className="border-b border-r border-gray-200 p-1">
                     {isActive && (
                       <button
-                        onClick={() => clearCart()}
+                        onClick={() => { clearCart(); autoBackup() }}
                         className="w-full min-h-[60px] rounded-xl px-3 text-sm font-medium bg-green-600 text-white hover:bg-green-700 active:scale-95 transition-all"
                       >
                         Done

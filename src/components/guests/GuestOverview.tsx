@@ -6,6 +6,7 @@ import { formatPrice } from '../../utils/formatPrice'
 import { TabDetail } from './TabDetail'
 import { Button } from '../shared/Button'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { autoBackup } from '../../utils/autoBackup'
 
 export function GuestOverview() {
   const { guests, payments, getEventTotal, getGuestTotal, markGuestPaid, navigateToGuestId, setNavigateToGuestId } = useStore()
@@ -58,6 +59,7 @@ export function GuestOverview() {
     for (const id of selectedIds) {
       markGuestPaid(id)
     }
+    autoBackup()
     setShowConfirmBulk(false)
     exitSelectionMode()
   }
@@ -172,6 +174,7 @@ export function GuestOverview() {
                   for (const g of noPaymentGuests) {
                     markGuestPaid(g.id)
                   }
+                  autoBackup()
                 }}
                 className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
               >

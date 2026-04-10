@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { Minus } from 'lucide-react'
 import type { DrinkCategory, Guest } from '../../types'
 import { useStore } from '../../store'
 import { formatPrice } from '../../utils/formatPrice'
@@ -36,7 +36,7 @@ export function DrinkCategoryModal({ guest, category, onClose }: DrinkCategoryMo
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-[520px] max-h-[85vh] flex flex-col mx-4 overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-[720px] max-h-[85vh] flex flex-col mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
 
@@ -52,47 +52,45 @@ export function DrinkCategoryModal({ guest, category, onClose }: DrinkCategoryMo
           </div>
         </div>
 
-        {/* Drink list — tap row to add, [−] to remove */}
+        {/* Drink tiles — tap tile to add */}
         <div className="flex-1 overflow-y-auto px-5 pb-5">
-          <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {category.drinks.map((drink) => {
               const qty = getQty(drink.id)
-              const lineTotal = qty * drink.price
+              const active = qty > 0
               return (
-                <div key={drink.id} className="flex items-center gap-0 min-h-[60px] border border-gray-200 rounded-xl overflow-hidden">
-
-                  {/* Tap to add — covers +, name, and price */}
-                  <button
-                    onClick={() => { navigator.vibrate?.(10); addDrinkToGuest(guest.id, drink.id) }}
-                    className="flex-1 flex items-center gap-3 text-left min-w-0 px-4 py-4 active:bg-green-50 transition-colors"
-                  >
-                    <Plus size={18} className={`shrink-0 ${qty > 0 ? 'text-green-700' : 'text-gray-400'}`} />
-                    <span className="flex-1 min-w-0 text-gray-900 font-medium">
-                      {drink.name}
+                <button
+                  key={drink.id}
+                  onClick={() => { navigator.vibrate?.(10); addDrinkToGuest(guest.id, drink.id) }}
+                  className={`relative flex flex-col items-center justify-center min-h-[120px] rounded-xl border-2 px-3 py-4 transition-colors active:scale-[0.97] ${
+                    active
+                      ? 'border-green-400 bg-green-50'
+                      : 'border-gray-200 bg-white active:bg-gray-50'
+                  }`}
+                >
+                  {/* Quantity badge */}
+                  {active && (
+                    <span className="absolute top-2 right-2 min-w-[28px] h-7 flex items-center justify-center rounded-full bg-green-600 text-white text-sm font-bold px-1.5">
+                      {qty}
                     </span>
-                    <span className="text-gray-400 text-sm shrink-0">{formatPrice(drink.price)}</span>
-                  </button>
+                  )}
 
-                  {/* Right side: line total + qty + [−] — always same height */}
-                  <div className="flex items-center gap-3 shrink-0 w-36 justify-end min-h-[44px]">
-                    {qty > 0 ? (
-                      <>
-                        <span className="text-gray-500 text-sm w-14 text-right">{formatPrice(lineTotal)}</span>
-                        <span className="text-gray-900 font-bold w-5 text-center">{qty}</span>
-                        <button
-                          onClick={() => removeDrinkFromGuest(guest.id, drink.id)}
-                          className="w-11 h-11 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors active:scale-95"
-                        >
-                          <Minus size={16} />
-                        </button>
-                      </>
-                    ) : (
-                      /* Placeholder matching the height of the active controls */
-                      <div className="h-11" />
-                    )}
-                  </div>
+                  {/* Minus button */}
+                  {active && (
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); removeDrinkFromGuest(guest.id, drink.id) }}
+                      className="absolute top-2 left-2 w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-500 active:bg-red-50 active:border-red-300 active:text-red-600"
+                    >
+                      <Minus size={16} />
+                    </span>
+                  )}
 
-                </div>
+                  <span className="text-gray-900 text-lg font-semibold text-center leading-tight">
+                    {drink.name}
+                  </span>
+                  <span className="text-gray-500 text-base mt-1">{formatPrice(drink.price)}</span>
+                </button>
               )
             })}
           </div>

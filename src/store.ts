@@ -23,6 +23,8 @@ interface UndoSnapshot {
 interface StoreState {
   eventName: string
   setupComplete: boolean
+  cloudBackupUrl: string
+  cloudBackupSecret: string
   categories: DrinkCategory[]
   guests: Guest[]
   orders: OrderItem[]
@@ -43,6 +45,8 @@ interface StoreState {
   // Event
   setEventName: (name: string) => void
   setSetupComplete: (v: boolean) => void
+  setCloudBackupUrl: (url: string) => void
+  setCloudBackupSecret: (secret: string) => void
 
   // Categories
   addCategory: (name: string, icon: string) => void
@@ -106,6 +110,8 @@ export const useStore = create<StoreState>()(
     (set, get) => ({
       eventName: 'My Event',
       setupComplete: false,
+      cloudBackupUrl: '',
+      cloudBackupSecret: '',
       categories: [],
       guests: [],
       orders: [],
@@ -149,6 +155,8 @@ export const useStore = create<StoreState>()(
 
       setEventName: (name) => set({ eventName: name }),
       setSetupComplete: (v) => set({ setupComplete: v }),
+      setCloudBackupUrl: (url) => set({ cloudBackupUrl: url }),
+      setCloudBackupSecret: (secret) => set({ cloudBackupSecret: secret }),
 
       // --- Categories ---
       addCategory: (name, icon) =>
@@ -582,6 +590,8 @@ export const useStore = create<StoreState>()(
       partialize: (state) => ({
         eventName: state.eventName,
         setupComplete: state.setupComplete,
+        cloudBackupUrl: state.cloudBackupUrl,
+        cloudBackupSecret: state.cloudBackupSecret,
         categories: state.categories,
         guests: state.guests,
         orders: state.orders,
