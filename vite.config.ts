@@ -7,7 +7,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 export default defineConfig({
   server: {
     host: true,   // expose on local network
-    https: true,  // use self-signed cert (via basicSsl plugin)
+    // https handled by basicSsl plugin
   },
   plugins: [
     basicSsl(),
