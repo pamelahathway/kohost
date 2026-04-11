@@ -16,24 +16,6 @@ function getEventSnapshot() {
   }
 }
 
-/** Download a JSON backup file locally. Must be called from a user gesture handler. */
-function downloadBackup() {
-  const data = getEventSnapshot()
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'kohost-backup.json'
-  a.style.display = 'none'
-  document.body.appendChild(a)
-  a.click()
-  // Delay cleanup so the browser has time to start the download
-  setTimeout(() => {
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }, 1000)
-}
-
 /** Push encrypted backup to the Cloudflare Worker. Fails silently (logs to console). */
 async function cloudBackup() {
   const { cloudBackupUrl, cloudBackupSecret } = useStore.getState()
@@ -154,12 +136,9 @@ export async function testCloudBackup(): Promise<{ ok: boolean; error?: string }
 }
 
 /**
- * Run both local download and cloud backup.
- * Must be called from a user gesture handler (click/tap) for the download to work on iPad Safari.
- * Local backup is unencrypted (stays on your device).
+ * Run cloud backup.
  * Cloud backup is encrypted with AES-256-GCM before leaving the device.
  */
 export function autoBackup() {
-  downloadBackup()
   cloudBackup()
 }
