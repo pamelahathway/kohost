@@ -646,18 +646,23 @@ export const useStore = create<StoreState>()(
       // --- Door sync ---
       // Merge remote visitors into local: per id, the higher updatedAt wins.
       // Tombstones (deleted=true) propagate the same way.
+      // Skips set() entirely when no record actually changed — without this,
+      // every poll would re-render the visitor lists and (worse) trigger
+      // downstream subscribers even though nothing was different.
       mergeRemoteVisitors: (remote) => {
-        set((s) => {
-          const byId = new Map<string, Visitor>()
-          for (const v of s.visitors) byId.set(v.id, v)
-          for (const r of remote) {
-            const local = byId.get(r.id)
-            if (!local || (r.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
-              byId.set(r.id, r)
-            }
+        const localVisitors = get().visitors
+        const byId = new Map<string, Visitor>()
+        for (const v of localVisitors) byId.set(v.id, v)
+        let mutated = false
+        for (const r of remote) {
+          const local = byId.get(r.id)
+          if (!local || (r.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
+            byId.set(r.id, r)
+            mutated = true
           }
-          return { visitors: [...byId.values()] }
-        })
+        }
+        if (!mutated) return
+        set({ visitors: [...byId.values()] })
       },
 
       setSyncStatus: (status, error = null) =>

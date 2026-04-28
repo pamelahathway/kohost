@@ -39,11 +39,12 @@ export default function App() {
   // Multi-device sync — only active when in session mode + cloud configured
   useDoorSync(currentTab)
 
-  // Push the whole-state /backup blob whenever any persisted slice changes
-  // (debounced). Without this, Setup-level changes like switching event mode
-  // or editing tiers wouldn't propagate to other devices via "Restore from
-  // cloud" — they'd only see whatever was saved by the last action that had
-  // an inline autoBackup() call.
+  // Push the whole-state /backup blob whenever any persisted *setup* slice
+  // changes (debounced). Visitors are deliberately excluded — they sync via
+  // the per-record /door endpoint, so triggering /backup on every visitor
+  // change would double-write to KV (and rip through the free-tier puts).
+  // The /backup blob will be slightly stale on visitors when restoring to a
+  // new device, but /door catches up on first sync.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
     const unsub = useStore.subscribe((state, prev) => {
@@ -55,7 +56,6 @@ export default function App() {
         state.guests !== prev.guests ||
         state.orders !== prev.orders ||
         state.payments !== prev.payments ||
-        state.visitors !== prev.visitors ||
         state.entryFeeConfig !== prev.entryFeeConfig
       if (!changed) return
       if (timer) clearTimeout(timer)

@@ -98,9 +98,10 @@ export default {
     }
 
     // PUT body: { visitors: DoorVisitor[] }. Server reads existing blob, merges
-    // each incoming record by id (higher updatedAt wins), writes back. Tiny race
-    // window between read and write — acceptable for ~4 devices polling 5s. If
-    // a write loses, the client re-PUTs on next cycle (always sends full local).
+    // each incoming record by id (higher updatedAt wins), writes back ONLY if
+    // a record actually changed. Clients send the full local list every poll
+    // so most cycles are no-op merges; without the mutated check we'd burn a
+    // KV put every poll (and blow past the 1000/day free tier in hours).
     if (request.method === 'PUT' && url.pathname === '/door') {
       let body: unknown
       try {
@@ -115,19 +116,24 @@ export default {
 
       const incoming = incomingRaw.filter(isDoorVisitor)
       const map = await readDoor(env)
+      let mutated = false
       for (const v of incoming) {
         const existing = map[v.id]
         if (!existing || v.updatedAt > existing.updatedAt) {
           map[v.id] = v
+          mutated = true
         }
       }
-      await writeDoor(env, map)
+      if (mutated) {
+        await writeDoor(env, map)
+      }
 
       return new Response(
         JSON.stringify({
           ok: true,
           visitors: Object.values(map),
           serverTime: Date.now(),
+          mutated,
         }),
         { headers: { 'Content-Type': 'application/json', ...cors } }
       )
