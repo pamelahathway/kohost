@@ -66,6 +66,7 @@ export interface Visitor {
   paidAt: number | null
   paidVia: 'cash' | 'sumup' | null
   amountOverridden: boolean  // true if staff edited the auto-calculated amount
+  kohoFriend: boolean        // true if the staff marked this as a KoHo Friend at checkout
   deleted: boolean           // tombstone flag — kept in array so other devices learn of deletion
   updatedAt: number          // for sync conflict resolution
   deviceId: string           // which phone last wrote this record

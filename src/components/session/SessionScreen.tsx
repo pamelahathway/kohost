@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DoorOpen, UserPlus } from 'lucide-react'
+import { DoorOpen, Sparkles, UserPlus } from 'lucide-react'
 import { useStore } from '../../store'
 import { calculateVisitorFee, formatDuration, formatTimeOfDay } from '../../utils/sessionFee'
 import { formatPrice } from '../../utils/formatPrice'
@@ -23,10 +23,17 @@ export function SessionScreen() {
     return () => clearInterval(id)
   }, [])
 
-  const active = useMemo(
-    () => visitors.filter((v) => !v.deleted && !v.exitedAt).sort((a, b) => a.enteredAt - b.enteredAt),
-    [visitors]
-  )
+  const { active, paid } = useMemo(() => {
+    const live = visitors.filter((v) => !v.deleted)
+    return {
+      active: live
+        .filter((v) => !v.exitedAt)
+        .sort((a, b) => a.enteredAt - b.enteredAt),
+      paid: live
+        .filter((v) => v.exitedAt)
+        .sort((a, b) => (b.exitedAt ?? 0) - (a.exitedAt ?? 0)), // most recent exit first
+    }
+  }, [visitors])
 
   const totalOwed = active.reduce((sum, v) => sum + calculateVisitorFee(v, now, config), 0)
 
@@ -73,14 +80,15 @@ export function SessionScreen() {
         </button>
       </div>
 
-      {/* Active visitor list */}
+      {/* Visitor lists */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-2xl w-full mx-auto">
+          {/* Inside section */}
+          <SectionHeader label="Inside" count={active.length} />
           {active.length === 0 ? (
-            <div className="text-center text-gray-400 py-16 px-6">
-              <DoorOpen size={32} className="mx-auto mb-3 text-gray-300" />
-              <div className="font-medium">No one is inside yet</div>
-              <div className="text-sm mt-1">Tap “Add visitor” to check someone in.</div>
+            <div className="text-center text-gray-400 py-10 px-6">
+              <DoorOpen size={28} className="mx-auto mb-2 text-gray-300" />
+              <div className="text-sm">No one is inside.</div>
             </div>
           ) : (
             active.map((v) => {
@@ -105,6 +113,40 @@ export function SessionScreen() {
               )
             })
           )}
+
+          {/* Paid section */}
+          {paid.length > 0 && (
+            <>
+              <SectionHeader label="Paid" count={paid.length} />
+              {paid.map((v) => {
+                const exitedAt = v.exitedAt ?? Date.now()
+                const stayMin = (exitedAt - v.enteredAt) / 60000
+                const amount = v.paidAmount ?? 0
+                return (
+                  <div
+                    key={v.id}
+                    className="w-full flex items-center gap-3 px-5 py-3 border-b border-gray-100 min-h-[64px]"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-semibold text-gray-900 truncate">{v.name}</span>
+                        {v.kohoFriend && <KohoBadge />}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {formatTimeOfDay(v.enteredAt)} → {formatTimeOfDay(exitedAt)} · {formatDuration(stayMin)}
+                      </div>
+                    </div>
+                    <div className={`text-base font-bold shrink-0 ${amount === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
+                      {amount === 0 ? 'free' : formatPrice(amount)}
+                    </div>
+                  </div>
+                )
+              })}
+            </>
+          )}
+
+          {/* spacer at the bottom so last row isn't cut off on phones with home indicator */}
+          <div className="h-6" />
         </div>
       </div>
 
@@ -116,5 +158,23 @@ export function SessionScreen() {
         />
       )}
     </div>
+  )
+}
+
+function SectionHeader({ label, count }: { label: string; count: number }) {
+  return (
+    <div className="px-5 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between sticky top-0 z-10">
+      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</span>
+      <span className="text-xs font-semibold text-gray-400">{count}</span>
+    </div>
+  )
+}
+
+function KohoBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 bg-gray-900 text-white text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0">
+      <Sparkles size={10} />
+      KoHo
+    </span>
   )
 }

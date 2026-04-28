@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import { useStore } from '../../store'
 import { calculateVisitorFee, formatDuration } from '../../utils/sessionFee'
 import { formatPrice } from '../../utils/formatPrice'
@@ -30,7 +31,8 @@ export function SessionDashboard() {
     )
 
     // Bucket each visitor by stay duration into the matching tier.
-    // For active visitors use (now - enteredAt); for completed use (exitedAt - enteredAt).
+    // KoHo Friends are pulled out into their own bucket regardless of stay
+    // length so they don't get lost in the breakdown.
     type Bucket = { tierId: string; label: string; priceCents: number; count: number; revenueCents: number }
     const buckets: Bucket[] = tiers.map((t) => ({
       tierId: t.id,
@@ -40,8 +42,15 @@ export function SessionDashboard() {
       revenueCents: 0,
     }))
 
+    const koho = { count: 0, revenueCents: 0 }
     let untieredCount = 0
+
     for (const v of live) {
+      if (v.kohoFriend) {
+        koho.count += 1
+        koho.revenueCents += v.paidAmount ?? 0
+        continue
+      }
       const endTime = v.exitedAt ?? now
       const minutes = (endTime - v.enteredAt) / 60000
       const matchedIdx = tiers.findIndex((t) => minutes >= t.minStart && minutes < t.minEnd)
@@ -51,7 +60,6 @@ export function SessionDashboard() {
       }
       const bucket = buckets[matchedIdx]
       bucket.count += 1
-      // Revenue: use actual paidAmount if paid, otherwise the tier's price (projected)
       bucket.revenueCents += v.paidAmount ?? tiers[matchedIdx].priceCents
     }
 
@@ -61,8 +69,25 @@ export function SessionDashboard() {
       ? 0
       : completed.reduce((sum, v) => sum + (v.exitedAt! - v.enteredAt), 0) / completed.length / 60000
 
-    return { totalVisitors, activeCount: active.length, paidCount: paid.length, revenue, owedNow, buckets, untieredCount, avgMinutes }
+    return {
+      totalVisitors,
+      activeCount: active.length,
+      paidCount: paid.length,
+      revenue,
+      owedNow,
+      buckets,
+      koho,
+      untieredCount,
+      avgMinutes,
+    }
   }, [visitors, tiers, now])
+
+  // Bar widths normalised across tier buckets + KoHo bucket so they're comparable
+  const maxBucketCount = Math.max(
+    ...stats.buckets.map((b) => b.count),
+    stats.koho.count,
+    1
+  )
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -86,7 +111,9 @@ export function SessionDashboard() {
           <Card label="Revenue">
             <span className="text-3xl font-bold text-green-600">{formatPrice(stats.revenue)}</span>
             <span className="text-xs text-gray-400 mt-0.5">
-              from {stats.paidCount} paid visit{stats.paidCount !== 1 ? 's' : ''}
+              {stats.koho.count > 0
+                ? `${stats.koho.count} KoHo · ${formatPrice(stats.koho.revenueCents)}`
+                : `from ${stats.paidCount} paid visit${stats.paidCount !== 1 ? 's' : ''}`}
             </span>
           </Card>
           <Card label="Owed now">
@@ -105,30 +132,43 @@ export function SessionDashboard() {
             <span className="text-gray-400 text-sm">No visitors yet.</span>
           ) : (
             <div className="space-y-2 mt-1">
-              {(() => {
-                const max = Math.max(...stats.buckets.map((b) => b.count), 1)
-                return stats.buckets.map((b) => (
-                  <div key={b.tierId} className="flex items-center gap-3">
-                    <span className="text-sm text-gray-700 font-medium w-32 shrink-0 truncate">
-                      {b.label} · {b.priceCents === 0 ? 'free' : formatPrice(b.priceCents)}
-                    </span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                      {b.count > 0 && (
-                        <div
-                          className="h-full rounded-full bg-amber-500"
-                          style={{ width: `${Math.max((b.count / max) * 100, 2)}%` }}
-                        />
-                      )}
-                    </div>
-                    <span className="text-sm font-bold text-gray-900 w-8 text-right shrink-0">
-                      {b.count}
-                    </span>
-                    <span className="text-xs text-gray-500 w-16 text-right shrink-0">
-                      {b.revenueCents === 0 ? '—' : formatPrice(b.revenueCents)}
-                    </span>
+              {stats.buckets.map((b) => (
+                <div key={b.tierId} className="flex items-center gap-3">
+                  <span className="text-sm text-gray-700 font-medium w-32 shrink-0 truncate">
+                    {b.label} · {b.priceCents === 0 ? 'free' : formatPrice(b.priceCents)}
+                  </span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                    {b.count > 0 && (
+                      <div
+                        className="h-full rounded-full bg-amber-500"
+                        style={{ width: `${Math.max((b.count / maxBucketCount) * 100, 2)}%` }}
+                      />
+                    )}
                   </div>
-                ))
-              })()}
+                  <span className="text-sm font-bold text-gray-900 w-8 text-right shrink-0">{b.count}</span>
+                  <span className="text-xs text-gray-500 w-16 text-right shrink-0">
+                    {b.revenueCents === 0 ? '—' : formatPrice(b.revenueCents)}
+                  </span>
+                </div>
+              ))}
+              {stats.koho.count > 0 && (
+                <div className="flex items-center gap-3 pt-2 mt-2 border-t border-gray-100">
+                  <span className="text-sm text-gray-900 font-semibold w-32 shrink-0 truncate flex items-center gap-1">
+                    <Sparkles size={12} className="text-gray-900" />
+                    KoHo Friends
+                  </span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gray-900"
+                      style={{ width: `${Math.max((stats.koho.count / maxBucketCount) * 100, 2)}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-bold text-gray-900 w-8 text-right shrink-0">{stats.koho.count}</span>
+                  <span className="text-xs text-gray-500 w-16 text-right shrink-0">
+                    {stats.koho.revenueCents === 0 ? '—' : formatPrice(stats.koho.revenueCents)}
+                  </span>
+                </div>
+              )}
               {stats.untieredCount > 0 && (
                 <div className="text-xs text-gray-400 mt-2">
                   {stats.untieredCount} visitor{stats.untieredCount !== 1 ? 's' : ''} fell outside any configured tier.

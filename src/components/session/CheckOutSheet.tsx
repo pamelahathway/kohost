@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react'
+import { Minus, Plus, Sparkles, X } from 'lucide-react'
 import { useStore } from '../../store'
 import { calculateVisitorFee, formatDuration, formatTimeOfDay } from '../../utils/sessionFee'
 import { formatPrice, parsePriceInput } from '../../utils/formatPrice'
@@ -40,6 +40,9 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
 
   // Initialize editable amount once when sheet opens / visitor loads
   const [amountText, setAmountText] = useState(() => (autoCents / 100).toFixed(2))
+  // KoHo Friend flag — set when the user taps the KoHo button, cleared on
+  // any other amount change. Stored on the visitor at checkout.
+  const [kohoSelected, setKohoSelected] = useState(false)
 
   // Sorted unique tier prices for the up/down steppers
   const tierPrices = useMemo(() => {
@@ -56,8 +59,12 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
   const nextTierUp = tierPrices.find((p) => p > enteredAmountCents)
   const nextTierDown = [...tierPrices].reverse().find((p) => p < enteredAmountCents)
 
-  function setAmountCents(cents: number) {
+  // Most paths through the sheet should clear the KoHo flag — only the KoHo
+  // button itself sets it. Helper centralises the "amount changed by some
+  // other path" reset.
+  function setAmountCents(cents: number, opts?: { keepKoho?: boolean }) {
     setAmountText((cents / 100).toFixed(2))
+    if (!opts?.keepKoho) setKohoSelected(false)
   }
 
   function handleConfirm() {
@@ -65,6 +72,7 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
       amountCents: enteredAmountCents,
       paidVia: 'cash',
       overridden,
+      kohoFriend: kohoSelected,
     })
     autoBackup()
     onClose()
@@ -80,6 +88,11 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
 
   function resetToAuto() {
     setAmountCents(autoCents)
+  }
+
+  function selectKohoFriend() {
+    setAmountCents(KOHO_FRIEND_CENTS, { keepKoho: true })
+    setKohoSelected(true)
   }
 
   return (
@@ -133,7 +146,7 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
                 type="text"
                 inputMode="decimal"
                 value={amountText}
-                onChange={(e) => setAmountText(e.target.value)}
+                onChange={(e) => { setAmountText(e.target.value); setKohoSelected(false) }}
                 autoFocus
                 className="w-full pl-9 pr-4 py-3 border border-gray-200 rounded-xl text-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               />
@@ -145,7 +158,7 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
               title={nextTierUp !== undefined ? `Up to ${formatPrice(nextTierUp)}` : 'Already at top tier'}
               className="w-12 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 active:scale-[0.97] transition flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
             >
-              <ChevronUp size={22} />
+              <Plus size={22} />
             </button>
             <button
               onClick={() => nextTierDown !== undefined && setAmountCents(nextTierDown)}
@@ -154,7 +167,7 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
               title={nextTierDown !== undefined ? `Down to ${formatPrice(nextTierDown)}` : 'Already at bottom tier'}
               className="w-12 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 active:scale-[0.97] transition flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
             >
-              <ChevronDown size={22} />
+              <Minus size={22} />
             </button>
           </div>
           {overridden && (
@@ -167,11 +180,15 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
           )}
 
           <button
-            onClick={() => setAmountCents(KOHO_FRIEND_CENTS)}
-            className="mt-5 w-full px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold active:scale-[0.99] transition min-h-[48px] flex items-center justify-center gap-2"
+            onClick={selectKohoFriend}
+            className={`mt-5 w-full px-4 py-3 rounded-xl text-white font-semibold active:scale-[0.99] transition min-h-[48px] flex items-center justify-center gap-2 ${
+              kohoSelected
+                ? 'bg-gray-900 ring-2 ring-gray-900 ring-offset-2'
+                : 'bg-gray-900 hover:bg-gray-800'
+            }`}
           >
             <Sparkles size={18} />
-            Becomes KoHo Friend · {formatPrice(KOHO_FRIEND_CENTS)}
+            {kohoSelected ? 'KoHo Friend' : 'Becomes KoHo Friend'} · {formatPrice(KOHO_FRIEND_CENTS)}
           </button>
 
           <button

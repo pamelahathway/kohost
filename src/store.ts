@@ -125,7 +125,7 @@ interface StoreState {
 
   // Session (time-based entry fee)
   addVisitor: (name: string) => void
-  checkOutVisitor: (id: string, opts: { amountCents: number; paidVia: 'cash' | 'sumup'; overridden: boolean }) => void
+  checkOutVisitor: (id: string, opts: { amountCents: number; paidVia: 'cash' | 'sumup'; overridden: boolean; kohoFriend: boolean }) => void
   removeVisitor: (id: string) => void
   updateEntryFeeConfig: (updates: Partial<EntryFeeConfig>) => void
 
@@ -600,6 +600,7 @@ export const useStore = create<StoreState>()(
           paidAt: null,
           paidVia: null,
           amountOverridden: false,
+          kohoFriend: false,
           deleted: false,
           updatedAt: now,
           deviceId: getDeviceId(),
@@ -619,6 +620,7 @@ export const useStore = create<StoreState>()(
                   paidAt: now,
                   paidVia: opts.paidVia,
                   amountOverridden: opts.overridden,
+                  kohoFriend: opts.kohoFriend,
                   updatedAt: now,
                   deviceId: getDeviceId(),
                 }
@@ -727,7 +729,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'kohost-tab-tracker',
-      version: 6,
+      version: 7,
       // Don't persist cart — it's transient. Don't persist requestedTab — it's nav.
       partialize: (state) => ({
         eventName: state.eventName,
@@ -768,6 +770,11 @@ export const useStore = create<StoreState>()(
           // Soft-delete tombstone field on visitors
           const visitors = (state.visitors as Visitor[] | undefined) ?? []
           state.visitors = visitors.map((v) => ({ ...v, deleted: v.deleted ?? false }))
+        }
+        if (version < 7) {
+          // KoHo Friend flag on visitors
+          const visitors = (state.visitors as Visitor[] | undefined) ?? []
+          state.visitors = visitors.map((v) => ({ ...v, kohoFriend: v.kohoFriend ?? false }))
         }
         return state as never
       },
