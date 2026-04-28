@@ -32,22 +32,33 @@ export function SessionDashboard() {
 
     // Bucket each visitor by stay duration into the matching tier.
     // KoHo Friends are pulled out into their own bucket regardless of stay
-    // length so they don't get lost in the breakdown.
-    type Bucket = { tierId: string; label: string; priceCents: number; count: number; revenueCents: number }
+    // length so they don't get lost in the breakdown. Each bucket tracks
+    // paid + inside separately so the bar can be stacked.
+    type Bucket = {
+      tierId: string
+      label: string
+      priceCents: number
+      paidCount: number
+      insideCount: number
+      revenueCents: number
+    }
     const buckets: Bucket[] = tiers.map((t) => ({
       tierId: t.id,
       label: `${t.minStart}–${t.minEnd}m`,
       priceCents: t.priceCents,
-      count: 0,
+      paidCount: 0,
+      insideCount: 0,
       revenueCents: 0,
     }))
 
-    const koho = { count: 0, revenueCents: 0 }
+    const koho = { paidCount: 0, insideCount: 0, revenueCents: 0 }
     let untieredCount = 0
 
     for (const v of live) {
+      const isPaid = v.paidAmount !== null
       if (v.kohoFriend) {
-        koho.count += 1
+        if (isPaid) koho.paidCount += 1
+        else koho.insideCount += 1
         koho.revenueCents += v.paidAmount ?? 0
         continue
       }
@@ -59,8 +70,9 @@ export function SessionDashboard() {
         continue
       }
       const bucket = buckets[matchedIdx]
-      bucket.count += 1
-      bucket.revenueCents += v.paidAmount ?? tiers[matchedIdx].priceCents
+      if (isPaid) bucket.paidCount += 1
+      else bucket.insideCount += 1
+      bucket.revenueCents += v.paidAmount ?? 0
     }
 
     // Average completed stay duration (for the "Inside" tile context)
@@ -82,10 +94,13 @@ export function SessionDashboard() {
     }
   }, [visitors, tiers, now])
 
-  // Bar widths normalised across tier buckets + KoHo bucket so they're comparable
+  // Bar widths normalised across tier buckets + KoHo bucket so they're comparable.
+  // Use total (paid + inside) per bucket as the basis.
+  const bucketTotal = (b: { paidCount: number; insideCount: number }) =>
+    b.paidCount + b.insideCount
   const maxBucketCount = Math.max(
-    ...stats.buckets.map((b) => b.count),
-    stats.koho.count,
+    ...stats.buckets.map(bucketTotal),
+    bucketTotal(stats.koho),
     1
   )
 
@@ -111,8 +126,8 @@ export function SessionDashboard() {
           <Card label="Revenue">
             <span className="text-3xl font-bold text-green-600">{formatPrice(stats.revenue)}</span>
             <span className="text-xs text-gray-400 mt-0.5">
-              {stats.koho.count > 0
-                ? `${stats.koho.count} KoHo · ${formatPrice(stats.koho.revenueCents)}`
+              {stats.koho.paidCount > 0
+                ? `${stats.koho.paidCount} KoHo · ${formatPrice(stats.koho.revenueCents)}`
                 : `from ${stats.paidCount} paid visit${stats.paidCount !== 1 ? 's' : ''}`}
             </span>
           </Card>
@@ -131,46 +146,47 @@ export function SessionDashboard() {
           ) : stats.totalVisitors === 0 ? (
             <span className="text-gray-400 text-sm">No visitors yet.</span>
           ) : (
-            <div className="space-y-2 mt-1">
-              {stats.buckets.map((b) => (
-                <div key={b.tierId} className="flex items-center gap-3">
-                  <span className="text-sm text-gray-700 font-medium w-32 shrink-0 truncate">
-                    {b.label} · {b.priceCents === 0 ? 'free' : formatPrice(b.priceCents)}
-                  </span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                    {b.count > 0 && (
-                      <div
-                        className="h-full rounded-full bg-amber-500"
-                        style={{ width: `${Math.max((b.count / maxBucketCount) * 100, 2)}%` }}
-                      />
-                    )}
-                  </div>
-                  <span className="text-sm font-bold text-gray-900 w-8 text-right shrink-0">{b.count}</span>
-                  <span className="text-xs text-gray-500 w-16 text-right shrink-0">
-                    {b.revenueCents === 0 ? '—' : formatPrice(b.revenueCents)}
-                  </span>
-                </div>
-              ))}
-              {stats.koho.count > 0 && (
-                <div className="flex items-center gap-3 pt-2 mt-2 border-t border-gray-100">
-                  <span className="text-sm text-gray-900 font-semibold w-32 shrink-0 truncate flex items-center gap-1">
-                    <Sparkles size={12} className="text-gray-900" />
-                    KoHo Friends
-                  </span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gray-900"
-                      style={{ width: `${Math.max((stats.koho.count / maxBucketCount) * 100, 2)}%` }}
+            <div className="mt-1">
+              {/* Legend */}
+              <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-500" />
+                  paid
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-500" />
+                  inside
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {stats.buckets.map((b) => (
+                  <BarRow
+                    key={b.tierId}
+                    label={`${b.label} · ${b.priceCents === 0 ? 'free' : formatPrice(b.priceCents)}`}
+                    paidCount={b.paidCount}
+                    insideCount={b.insideCount}
+                    revenueCents={b.revenueCents}
+                    maxCount={maxBucketCount}
+                  />
+                ))}
+                {(stats.koho.paidCount > 0 || stats.koho.insideCount > 0) && (
+                  <div className="pt-2 mt-2 border-t border-gray-100">
+                    <BarRow
+                      label="KoHo Friends"
+                      labelIcon={<Sparkles size={12} className="text-gray-900" />}
+                      labelBold
+                      paidCount={stats.koho.paidCount}
+                      insideCount={stats.koho.insideCount}
+                      revenueCents={stats.koho.revenueCents}
+                      maxCount={maxBucketCount}
                     />
                   </div>
-                  <span className="text-sm font-bold text-gray-900 w-8 text-right shrink-0">{stats.koho.count}</span>
-                  <span className="text-xs text-gray-500 w-16 text-right shrink-0">
-                    {stats.koho.revenueCents === 0 ? '—' : formatPrice(stats.koho.revenueCents)}
-                  </span>
-                </div>
-              )}
+                )}
+              </div>
+
               {stats.untieredCount > 0 && (
-                <div className="text-xs text-gray-400 mt-2">
+                <div className="text-xs text-gray-400 mt-3">
                   {stats.untieredCount} visitor{stats.untieredCount !== 1 ? 's' : ''} fell outside any configured tier.
                 </div>
               )}
@@ -178,6 +194,65 @@ export function SessionDashboard() {
           )}
         </Card>
       </div>
+    </div>
+  )
+}
+
+function BarRow({
+  label,
+  labelIcon,
+  labelBold,
+  paidCount,
+  insideCount,
+  revenueCents,
+  maxCount,
+}: {
+  label: string
+  labelIcon?: React.ReactNode
+  labelBold?: boolean
+  paidCount: number
+  insideCount: number
+  revenueCents: number
+  maxCount: number
+}) {
+  // Each segment's width is (count / maxCount) * 100, so the total bar length
+  // reflects the bucket's size relative to the busiest bucket.
+  const paidPct = (paidCount / maxCount) * 100
+  const insidePct = (insideCount / maxCount) * 100
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className={`text-sm w-32 shrink-0 truncate flex items-center gap-1 ${
+          labelBold ? 'text-gray-900 font-semibold' : 'text-gray-700 font-medium'
+        }`}
+      >
+        {labelIcon}
+        {label}
+      </span>
+      <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden flex">
+        {paidCount > 0 && (
+          <div
+            className="h-full bg-green-500"
+            style={{ width: `${paidPct}%` }}
+            title={`${paidCount} paid`}
+          />
+        )}
+        {insideCount > 0 && (
+          <div
+            className="h-full bg-amber-500"
+            style={{ width: `${insidePct}%` }}
+            title={`${insideCount} inside`}
+          />
+        )}
+      </div>
+      <div className="flex items-baseline justify-end gap-1 w-16 shrink-0">
+        <span className="text-sm font-bold text-green-600">{paidCount}</span>
+        <span className="text-xs text-gray-300">·</span>
+        <span className="text-sm font-bold text-amber-600">{insideCount}</span>
+      </div>
+      <span className="text-xs text-gray-500 w-16 text-right shrink-0">
+        {revenueCents === 0 ? '—' : formatPrice(revenueCents)}
+      </span>
     </div>
   )
 }
