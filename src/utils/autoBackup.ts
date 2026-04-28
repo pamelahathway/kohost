@@ -21,7 +21,8 @@ function getEventSnapshot() {
 
 /** Push encrypted backup to the Cloudflare Worker. Fails silently (logs to console). */
 async function cloudBackup() {
-  const { cloudBackupUrl, cloudBackupSecret } = useStore.getState()
+  const { cloudBackupUrl: rawUrl, cloudBackupSecret } = useStore.getState()
+  const cloudBackupUrl = rawUrl.replace(/\/+$/, '')
   if (!cloudBackupUrl || !cloudBackupSecret) {
     console.log('[autoBackup] Skipped — no URL or secret configured')
     return
@@ -63,7 +64,8 @@ export async function restoreFromCloud(): Promise<{
   visitors: unknown[]
   entryFeeConfig: unknown
 } | string> {
-  const { cloudBackupUrl, cloudBackupSecret } = useStore.getState()
+  const { cloudBackupUrl: rawUrl, cloudBackupSecret } = useStore.getState()
+  const cloudBackupUrl = rawUrl.replace(/\/+$/, '')
   if (!cloudBackupUrl || !cloudBackupSecret) return 'No URL or secret configured'
 
   try {
@@ -126,7 +128,8 @@ export async function restoreFromCloud(): Promise<{
 
 /** Test cloud backup connectivity. Returns true if successful. */
 export async function testCloudBackup(): Promise<{ ok: boolean; error?: string }> {
-  const { cloudBackupUrl, cloudBackupSecret } = useStore.getState()
+  const { cloudBackupUrl: rawUrl, cloudBackupSecret } = useStore.getState()
+  const cloudBackupUrl = rawUrl.replace(/\/+$/, '')
   if (!cloudBackupUrl) return { ok: false, error: 'No backup URL configured' }
   if (!cloudBackupSecret) return { ok: false, error: 'No backup secret configured' }
 

@@ -15,7 +15,8 @@ export type SyncFailure = { ok: false; error: string }
  * round-trip. On failure, returns an error string for the UI.
  */
 export async function syncDoor(): Promise<SyncResult | SyncFailure> {
-  const { cloudBackupUrl, cloudBackupSecret, visitors } = useStore.getState()
+  const { cloudBackupUrl: rawUrl, cloudBackupSecret, visitors } = useStore.getState()
+  const cloudBackupUrl = rawUrl.replace(/\/+$/, '')
   if (!cloudBackupUrl || !cloudBackupSecret) {
     return { ok: false, error: 'Cloud sync not configured' }
   }

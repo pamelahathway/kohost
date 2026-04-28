@@ -214,7 +214,7 @@ export const useStore = create<StoreState>()(
 
       setEventName: (name) => set({ eventName: name }),
       setSetupComplete: (v) => set({ setupComplete: v }),
-      setCloudBackupUrl: (url) => set({ cloudBackupUrl: url }),
+      setCloudBackupUrl: (url) => set({ cloudBackupUrl: url.replace(/\/+$/, '') }),
       setCloudBackupSecret: (secret) => set({ cloudBackupSecret: secret }),
 
       // --- Categories ---
