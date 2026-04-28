@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react'
 import { useStore } from '../../store'
 import { calculateVisitorFee, formatDuration, formatTimeOfDay } from '../../utils/sessionFee'
 import { formatPrice, parsePriceInput } from '../../utils/formatPrice'
@@ -9,6 +9,8 @@ interface CheckOutSheetProps {
   visitorId: string
   onClose: () => void
 }
+
+const KOHO_FRIEND_CENTS = 2500
 
 export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
   const visitor = useStore((s) => s.visitors.find((v) => v.id === visitorId))
@@ -39,11 +41,24 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
   // Initialize editable amount once when sheet opens / visitor loads
   const [amountText, setAmountText] = useState(() => (autoCents / 100).toFixed(2))
 
+  // Sorted unique tier prices for the up/down steppers
+  const tierPrices = useMemo(() => {
+    const set = new Set((config?.tiers ?? []).map((t) => t.priceCents))
+    return [...set].sort((a, b) => a - b)
+  }, [config])
+
   if (!visitor) return null
 
   const minutes = (now - visitor.enteredAt) / 60000
   const enteredAmountCents = parsePriceInput(amountText)
   const overridden = enteredAmountCents !== autoCents
+
+  const nextTierUp = tierPrices.find((p) => p > enteredAmountCents)
+  const nextTierDown = [...tierPrices].reverse().find((p) => p < enteredAmountCents)
+
+  function setAmountCents(cents: number) {
+    setAmountText((cents / 100).toFixed(2))
+  }
 
   function handleConfirm() {
     checkOutVisitor(visitor!.id, {
@@ -64,7 +79,7 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
   }
 
   function resetToAuto() {
-    setAmountText((autoCents / 100).toFixed(2))
+    setAmountCents(autoCents)
   }
 
   return (
@@ -111,16 +126,36 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
           </div>
 
           <label className="text-xs font-medium text-gray-500 mb-1 block">Amount to charge</label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">€</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={amountText}
-              onChange={(e) => setAmountText(e.target.value)}
-              autoFocus
-              className="w-full pl-9 pr-4 py-3 border border-gray-200 rounded-xl text-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-            />
+          <div className="flex items-stretch gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">€</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={amountText}
+                onChange={(e) => setAmountText(e.target.value)}
+                autoFocus
+                className="w-full pl-9 pr-4 py-3 border border-gray-200 rounded-xl text-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              />
+            </div>
+            <button
+              onClick={() => nextTierUp !== undefined && setAmountCents(nextTierUp)}
+              disabled={nextTierUp === undefined}
+              aria-label="Next tier up"
+              title={nextTierUp !== undefined ? `Up to ${formatPrice(nextTierUp)}` : 'Already at top tier'}
+              className="w-12 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 active:scale-[0.97] transition flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
+            >
+              <ChevronUp size={22} />
+            </button>
+            <button
+              onClick={() => nextTierDown !== undefined && setAmountCents(nextTierDown)}
+              disabled={nextTierDown === undefined}
+              aria-label="Next tier down"
+              title={nextTierDown !== undefined ? `Down to ${formatPrice(nextTierDown)}` : 'Already at bottom tier'}
+              className="w-12 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 active:scale-[0.97] transition flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
+            >
+              <ChevronDown size={22} />
+            </button>
           </div>
           {overridden && (
             <button
@@ -132,10 +167,18 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
           )}
 
           <button
-            onClick={handleCancelCheckIn}
-            className="mt-6 text-sm text-red-600 hover:text-red-700 font-medium"
+            onClick={() => setAmountCents(KOHO_FRIEND_CENTS)}
+            className="mt-5 w-full px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold active:scale-[0.99] transition min-h-[48px] flex items-center justify-center gap-2"
           >
-            Cancel check-in (remove record)
+            <Sparkles size={18} />
+            Becomes KoHo Friend · {formatPrice(KOHO_FRIEND_CENTS)}
+          </button>
+
+          <button
+            onClick={handleCancelCheckIn}
+            className="mt-3 w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 active:scale-[0.99] transition min-h-[48px]"
+          >
+            Cancel check-in
           </button>
         </div>
 
