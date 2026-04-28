@@ -1,13 +1,16 @@
-import type { DrinkCategory, Guest, OrderItem, PaymentRecord } from '../types'
+import type { DrinkCategory, EntryFeeConfig, EventMode, Guest, OrderItem, PaymentRecord, Visitor } from '../types'
 import { generateId } from './generateId'
 
 /** The persisted data of an event (matches what Zustand persists). */
 export interface EventData {
   eventName: string
+  eventMode?: EventMode | null
   categories: DrinkCategory[]
   guests: Guest[]
   orders: OrderItem[]
   payments: PaymentRecord[]
+  visitors?: Visitor[]
+  entryFeeConfig?: EntryFeeConfig
 }
 
 /** Metadata for listing saved events (stored in the index). */
@@ -78,10 +81,13 @@ interface EventExportFormat {
   type: 'kohost-event'
   exportedAt: string
   eventName: string
+  eventMode?: EventMode | null
   categories: DrinkCategory[]
   guests: Guest[]
   orders: OrderItem[]
   payments: PaymentRecord[]
+  visitors?: Visitor[]
+  entryFeeConfig?: EntryFeeConfig
 }
 
 /** Export event data as a downloadable JSON file. */
@@ -112,10 +118,13 @@ export function importEventJSON(text: string): EventData | null {
     }
     return {
       eventName: data.eventName,
+      eventMode: data.eventMode,
       categories: data.categories,
       guests: data.guests,
       orders: data.orders ?? [],
       payments: data.payments ?? [],
+      visitors: data.visitors ?? [],
+      entryFeeConfig: data.entryFeeConfig,
     }
   } catch {
     return null

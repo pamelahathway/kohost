@@ -16,13 +16,15 @@ import {
   type SavedEventMeta,
 } from '../../utils/eventStorage'
 import { restoreFromCloud, testCloudBackup } from '../../utils/autoBackup'
+import { SessionSettings } from './SessionSettings'
+import { EventModePicker } from './EventModePicker'
 
 interface SetupScreenProps {
   onDone: () => void
 }
 
 export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
-  const { eventName, setEventName, categories, guests, orders, payments, setupComplete, setSetupComplete, saveCurrentEvent, loadEvent, startNewEvent, cloudBackupUrl, cloudBackupSecret, setCloudBackupUrl, setCloudBackupSecret } = useStore()
+  const { eventName, setEventName, categories, guests, orders, payments, setupComplete, setSetupComplete, saveCurrentEvent, loadEvent, startNewEvent, cloudBackupUrl, cloudBackupSecret, setCloudBackupUrl, setCloudBackupSecret, eventMode } = useStore()
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(eventName)
 
@@ -376,7 +378,7 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">Secret</label>
               <input
-                type="text"
+                type="password"
                 placeholder="shared secret"
                 value={cloudBackupSecret}
                 onChange={(e) => setCloudBackupSecret(e.target.value)}
@@ -407,6 +409,9 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
             </div>
           </div>
         </div>
+
+        {/* ============ EVENT MODE PICKER ============ */}
+        {setupComplete && <EventModePicker />}
 
         {/* ============ CURRENT EVENT SECTION ============ */}
         {setupComplete && <div className="px-6 pt-4">
@@ -487,11 +492,23 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
 
           </div>
 
-          {/* Menu + Guest editors */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
-            <MenuEditor />
-            <GuestEditor />
-          </div>
+          {/* Mode-specific editors */}
+          {eventMode === 'brunch' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
+              <MenuEditor />
+              <GuestEditor />
+            </div>
+          )}
+          {eventMode === 'session' && (
+            <div className="pb-6">
+              <SessionSettings />
+            </div>
+          )}
+          {!eventMode && (
+            <div className="text-sm text-gray-500 pb-6">
+              Pick an event mode above to configure the event.
+            </div>
+          )}
         </div>}
       </div>
 

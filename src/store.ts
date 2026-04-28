@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
+  AppTab,
   DrinkCategory,
   Drink,
   Guest,
@@ -8,9 +9,23 @@ import type {
   PaymentRecord,
   PaidLineItem,
   CartItem,
+  Visitor,
+  EntryFeeConfig,
+  EventMode,
 } from './types'
 import { generateId } from './utils/generateId'
+import { getDeviceId } from './utils/deviceId'
+import { defaultEntryFeeConfig, normalizeEntryFeeConfig } from './utils/sessionFee'
 import { saveEvent as saveEventToStorage, type EventData } from './utils/eventStorage'
+
+/** Infer event mode for legacy data that predates the eventMode field. */
+function inferEventMode(data: { orders?: unknown[]; guests?: unknown[]; payments?: unknown[]; visitors?: unknown[] }): EventMode | null {
+  const hasBrunch = (data.orders?.length ?? 0) > 0 || (data.guests?.length ?? 0) > 0 || (data.payments?.length ?? 0) > 0
+  const hasSession = (data.visitors?.length ?? 0) > 0
+  if (hasBrunch) return 'brunch'
+  if (hasSession) return 'session'
+  return null
+}
 
 interface UndoSnapshot {
   orders: OrderItem[]
@@ -23,6 +38,7 @@ interface UndoSnapshot {
 interface StoreState {
   eventName: string
   setupComplete: boolean
+  eventMode: EventMode | null
   cloudBackupUrl: string
   cloudBackupSecret: string
   categories: DrinkCategory[]
@@ -30,11 +46,21 @@ interface StoreState {
   orders: OrderItem[]
   payments: PaymentRecord[]
   cart: CartItem[]
+  visitors: Visitor[]
+  entryFeeConfig: EntryFeeConfig
   lastActiveGuestId: string | null
   navigateToGuestId: string | null
+  requestedTab: AppTab | null
+
+  // Door sync (transient — not persisted)
+  syncStatus: 'idle' | 'syncing' | 'error'
+  lastSyncedAt: number | null
+  syncError: string | null
 
   // Navigation
   setNavigateToGuestId: (guestId: string | null) => void
+  setRequestedTab: (tab: AppTab | null) => void
+  setEventMode: (mode: EventMode) => void
 
   // Undo
   _undoSnapshot: UndoSnapshot | null
@@ -97,6 +123,17 @@ interface StoreState {
   markGuestPaid: (guestId: string, amountPaid?: number) => void
   reopenGuestTab: (guestId: string) => void
 
+  // Session (time-based entry fee)
+  addVisitor: (name: string) => void
+  checkOutVisitor: (id: string, opts: { amountCents: number; paidVia: 'cash' | 'sumup'; overridden: boolean }) => void
+  removeVisitor: (id: string) => void
+  updateEntryFeeConfig: (updates: Partial<EntryFeeConfig>) => void
+
+  // Door sync
+  mergeRemoteVisitors: (remote: Visitor[]) => void
+  setSyncStatus: (status: 'idle' | 'syncing' | 'error', error?: string | null) => void
+  markSynced: (at: number) => void
+
   // Derived helpers
   getGuestTotal: (guestId: string) => number
   getGuestLineItems: (guestId: string) => Array<{ drinkId: string; drinkName: string; categoryName: string; quantity: number; unitPrice: number; lineTotal: number }>
@@ -110,6 +147,7 @@ export const useStore = create<StoreState>()(
     (set, get) => ({
       eventName: 'My Event',
       setupComplete: false,
+      eventMode: null,
       cloudBackupUrl: '',
       cloudBackupSecret: '',
       categories: [],
@@ -117,11 +155,32 @@ export const useStore = create<StoreState>()(
       orders: [],
       payments: [],
       cart: [],
+      visitors: [],
+      entryFeeConfig: defaultEntryFeeConfig(),
       lastActiveGuestId: null,
       navigateToGuestId: null,
+      requestedTab: null,
+
+      syncStatus: 'idle',
+      lastSyncedAt: null,
+      syncError: null,
 
       // Navigation
       setNavigateToGuestId: (guestId) => set({ navigateToGuestId: guestId }),
+      setRequestedTab: (tab) => set({ requestedTab: tab }),
+
+      // Event mode — switching clears the *other* mode's per-event data;
+      // categories (menu) and entryFeeConfig (pricing) persist as reusable config.
+      setEventMode: (mode) => {
+        const current = get().eventMode
+        if (current === mode) return
+        if (current === 'brunch') {
+          set({ orders: [], payments: [], cart: [], guests: [], lastActiveGuestId: null })
+        } else if (current === 'session') {
+          set({ visitors: [] })
+        }
+        set({ eventMode: mode })
+      },
 
       // Undo
       _undoSnapshot: null,
@@ -423,26 +482,31 @@ export const useStore = create<StoreState>()(
       resetEvent: () =>
         set({
           eventName: 'My Event',
+          eventMode: null,
           guests: [],
           orders: [],
           payments: [],
           cart: [],
+          visitors: [],
           lastActiveGuestId: null,
         }),
 
       // --- Event management ---
       saveCurrentEvent: () => {
-        const { eventName, categories, guests, orders, payments } = get()
-        return saveEventToStorage({ eventName, categories, guests, orders, payments })
+        const { eventName, eventMode, categories, guests, orders, payments, visitors, entryFeeConfig } = get()
+        return saveEventToStorage({ eventName, eventMode, categories, guests, orders, payments, visitors, entryFeeConfig })
       },
 
       loadEvent: (data) =>
         set({
           eventName: data.eventName,
+          eventMode: data.eventMode ?? inferEventMode(data),
           categories: data.categories,
           guests: data.guests,
           orders: data.orders,
           payments: data.payments,
+          visitors: data.visitors ?? [],
+          entryFeeConfig: normalizeEntryFeeConfig(data.entryFeeConfig),
           cart: [],
           lastActiveGuestId: null,
           _undoSnapshot: null,
@@ -454,11 +518,13 @@ export const useStore = create<StoreState>()(
         set({
           eventName: 'My Event',
           setupComplete: false,
+          eventMode: 'session',
           categories: [],
           guests: [],
           orders: [],
           payments: [],
           cart: [],
+          visitors: [],
           lastActiveGuestId: null,
           _undoSnapshot: null,
           undoLabel: null,
@@ -521,6 +587,82 @@ export const useStore = create<StoreState>()(
             g.id === guestId ? { ...g, paid: false, paidAt: null } : g
           ),
         })),
+
+      // --- Session (time-based entry fee) ---
+      addVisitor: (name) => {
+        const now = Date.now()
+        const visitor: Visitor = {
+          id: generateId(),
+          name,
+          enteredAt: now,
+          exitedAt: null,
+          paidAmount: null,
+          paidAt: null,
+          paidVia: null,
+          amountOverridden: false,
+          deleted: false,
+          updatedAt: now,
+          deviceId: getDeviceId(),
+        }
+        set((s) => ({ visitors: [...s.visitors, visitor] }))
+      },
+
+      checkOutVisitor: (id, opts) => {
+        const now = Date.now()
+        set((s) => ({
+          visitors: s.visitors.map((v) =>
+            v.id === id
+              ? {
+                  ...v,
+                  exitedAt: now,
+                  paidAmount: opts.amountCents,
+                  paidAt: now,
+                  paidVia: opts.paidVia,
+                  amountOverridden: opts.overridden,
+                  updatedAt: now,
+                  deviceId: getDeviceId(),
+                }
+              : v
+          ),
+        }))
+      },
+
+      removeVisitor: (id) => {
+        const now = Date.now()
+        set((s) => ({
+          visitors: s.visitors.map((v) =>
+            v.id === id
+              ? { ...v, deleted: true, updatedAt: now, deviceId: getDeviceId() }
+              : v
+          ),
+        }))
+      },
+
+      updateEntryFeeConfig: (updates) =>
+        set((s) => ({ entryFeeConfig: { ...s.entryFeeConfig, ...updates } })),
+
+      // --- Door sync ---
+      // Merge remote visitors into local: per id, the higher updatedAt wins.
+      // Tombstones (deleted=true) propagate the same way.
+      mergeRemoteVisitors: (remote) => {
+        set((s) => {
+          const byId = new Map<string, Visitor>()
+          for (const v of s.visitors) byId.set(v.id, v)
+          for (const r of remote) {
+            const local = byId.get(r.id)
+            if (!local || (r.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
+              byId.set(r.id, r)
+            }
+          }
+          return { visitors: [...byId.values()] }
+        })
+      },
+
+      setSyncStatus: (status, error = null) =>
+        set({ syncStatus: status, syncError: error }),
+
+      markSynced: (at) =>
+        set({ syncStatus: 'idle', lastSyncedAt: at, syncError: null }),
 
       // --- Derived ---
       getGuestTotal: (guestId) => {
@@ -585,17 +727,20 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'kohost-tab-tracker',
-      version: 2,
-      // Don't persist cart — it's transient
+      version: 6,
+      // Don't persist cart — it's transient. Don't persist requestedTab — it's nav.
       partialize: (state) => ({
         eventName: state.eventName,
         setupComplete: state.setupComplete,
+        eventMode: state.eventMode,
         cloudBackupUrl: state.cloudBackupUrl,
         cloudBackupSecret: state.cloudBackupSecret,
         categories: state.categories,
         guests: state.guests,
         orders: state.orders,
         payments: state.payments,
+        visitors: state.visitors,
+        entryFeeConfig: state.entryFeeConfig,
       }),
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>
@@ -606,6 +751,23 @@ export const useStore = create<StoreState>()(
             ...p,
             amountPaid: p.amountPaid ?? p.total,
           }))
+        }
+        if (version < 3) {
+          state.visitors = state.visitors ?? []
+          state.entryFeeConfig = state.entryFeeConfig ?? defaultEntryFeeConfig()
+        }
+        if (version < 4) {
+          // Infer mode from existing data so users with mid-build state aren't dropped to "no mode"
+          state.eventMode = inferEventMode(state as Record<string, never[]>)
+        }
+        if (version < 5) {
+          // Convert legacy entryFeeConfig (freeUnderMinutes/tier1Until/...) to tiers shape
+          state.entryFeeConfig = normalizeEntryFeeConfig(state.entryFeeConfig)
+        }
+        if (version < 6) {
+          // Soft-delete tombstone field on visitors
+          const visitors = (state.visitors as Visitor[] | undefined) ?? []
+          state.visitors = visitors.map((v) => ({ ...v, deleted: v.deleted ?? false }))
         }
         return state as never
       },

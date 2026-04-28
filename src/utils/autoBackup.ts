@@ -3,16 +3,19 @@ import { encrypt, decrypt, isEncryptedPayload } from './crypto'
 
 /** Build the event data snapshot from current store state. */
 function getEventSnapshot() {
-  const { eventName, categories, guests, orders, payments } = useStore.getState()
+  const { eventName, eventMode, categories, guests, orders, payments, visitors, entryFeeConfig } = useStore.getState()
   return {
     version: 1,
     type: 'kohost-event' as const,
     exportedAt: new Date().toISOString(),
     eventName,
+    eventMode,
     categories,
     guests,
     orders,
     payments,
+    visitors,
+    entryFeeConfig,
   }
 }
 
@@ -52,10 +55,13 @@ async function cloudBackup() {
 /** Restore from cloud backup. Decrypts client-side. Returns event data or error string. */
 export async function restoreFromCloud(): Promise<{
   eventName: string
+  eventMode: unknown
   categories: unknown[]
   guests: unknown[]
   orders: unknown[]
   payments: unknown[]
+  visitors: unknown[]
+  entryFeeConfig: unknown
 } | string> {
   const { cloudBackupUrl, cloudBackupSecret } = useStore.getState()
   if (!cloudBackupUrl || !cloudBackupSecret) return 'No URL or secret configured'
@@ -105,10 +111,13 @@ export async function restoreFromCloud(): Promise<{
     }
     return {
       eventName: data.eventName as string,
+      eventMode: data.eventMode,
       categories: data.categories as unknown[],
       guests: data.guests as unknown[],
       orders: (data.orders ?? []) as unknown[],
       payments: (data.payments ?? []) as unknown[],
+      visitors: (data.visitors ?? []) as unknown[],
+      entryFeeConfig: data.entryFeeConfig,
     }
   } catch (err) {
     return `Network error: ${err instanceof Error ? err.message : String(err)}`

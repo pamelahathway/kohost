@@ -55,4 +55,33 @@ export interface CartItem {
   quantity: number
 }
 
-export type AppTab = 'order' | 'guests' | 'dashboard' | 'setup'
+// --- Session mode (time-based entry fee) ---
+
+export interface Visitor {
+  id: string
+  name: string
+  enteredAt: number          // ms epoch
+  exitedAt: number | null
+  paidAmount: number | null  // cents; null = unpaid
+  paidAt: number | null
+  paidVia: 'cash' | 'sumup' | null
+  amountOverridden: boolean  // true if staff edited the auto-calculated amount
+  deleted: boolean           // tombstone flag — kept in array so other devices learn of deletion
+  updatedAt: number          // for sync conflict resolution
+  deviceId: string           // which phone last wrote this record
+}
+
+export interface FeeTier {
+  id: string
+  minStart: number    // minutes, inclusive
+  minEnd: number      // minutes, exclusive — set high (e.g. 9999) for the topmost tier
+  priceCents: number
+}
+
+export interface EntryFeeConfig {
+  tiers: FeeTier[]
+}
+
+export type AppTab = 'order' | 'session' | 'guests' | 'dashboard' | 'setup'
+
+export type EventMode = 'brunch' | 'session'

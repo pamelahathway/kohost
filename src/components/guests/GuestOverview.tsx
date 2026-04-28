@@ -6,10 +6,11 @@ import { formatPrice } from '../../utils/formatPrice'
 import { TabDetail } from './TabDetail'
 import { Button } from '../shared/Button'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { ModeEmptyState } from '../shared/ModeEmptyState'
 import { autoBackup } from '../../utils/autoBackup'
 
 export function GuestOverview() {
-  const { guests, payments, getEventTotal, getGuestTotal, markGuestPaid, navigateToGuestId, setNavigateToGuestId } = useStore()
+  const { guests, payments, getEventTotal, getGuestTotal, markGuestPaid, navigateToGuestId, setNavigateToGuestId, eventMode } = useStore()
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null)
 
   // Handle navigation from other tabs (e.g. GuestSummaryModal "View Full Tab")
@@ -67,6 +68,21 @@ export function GuestOverview() {
   const selectedTotal = outstandingGuests
     .filter((g) => selectedIds.has(g.id))
     .reduce((sum, g) => sum + getGuestTotal(g.id), 0)
+
+  if (eventMode !== 'brunch') {
+    return (
+      <ModeEmptyState
+        icon={<Users size={40} />}
+        title={eventMode === 'session' ? 'This event is in Session mode' : 'No brunch event configured'}
+        description={
+          eventMode === 'session'
+            ? 'Switch to Brunch in Setup to manage guest tabs.'
+            : 'Choose Brunch in Setup to start managing guest tabs.'
+        }
+        accent="green"
+      />
+    )
+  }
 
   if (selectedGuest) {
     const freshGuest = guests.find((g) => g.id === selectedGuest.id) ?? selectedGuest
