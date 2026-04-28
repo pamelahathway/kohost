@@ -45,9 +45,9 @@ export function SyncIndicator() {
 
   if (syncStatus === 'error') {
     return (
-      <div className="text-xs text-red-600 flex items-center gap-1.5" title={syncError ?? ''}>
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />
-        Sync error
+      <div className="text-xs text-red-600 flex items-center gap-1.5 max-w-full">
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+        <span className="truncate">Sync error: {syncError ?? 'unknown'}</span>
       </div>
     )
   }

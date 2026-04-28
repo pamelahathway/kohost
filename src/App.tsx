@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { AppTab, EventMode } from './types'
 import { useStore } from './store'
 import { useDoorSync } from './hooks/useDoorSync'
+import { autoBackup } from './utils/autoBackup'
 import { TopBar } from './components/layout/TopBar'
 import { UndoToast } from './components/shared/UndoToast'
 import { SetupScreen } from './components/setup/SetupScreen'
@@ -37,6 +38,34 @@ export default function App() {
 
   // Multi-device sync — only active when in session mode + cloud configured
   useDoorSync(currentTab)
+
+  // Push the whole-state /backup blob whenever any persisted slice changes
+  // (debounced). Without this, Setup-level changes like switching event mode
+  // or editing tiers wouldn't propagate to other devices via "Restore from
+  // cloud" — they'd only see whatever was saved by the last action that had
+  // an inline autoBackup() call.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const unsub = useStore.subscribe((state, prev) => {
+      const changed =
+        state.eventName !== prev.eventName ||
+        state.eventMode !== prev.eventMode ||
+        state.setupComplete !== prev.setupComplete ||
+        state.categories !== prev.categories ||
+        state.guests !== prev.guests ||
+        state.orders !== prev.orders ||
+        state.payments !== prev.payments ||
+        state.visitors !== prev.visitors ||
+        state.entryFeeConfig !== prev.entryFeeConfig
+      if (!changed) return
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => autoBackup(), 2000)
+    })
+    return () => {
+      unsub()
+      if (timer) clearTimeout(timer)
+    }
+  }, [])
 
   return (
     <div className="flex flex-col h-full bg-white">
