@@ -131,6 +131,7 @@ interface StoreState {
 
   // Door sync
   mergeRemoteVisitors: (remote: Visitor[]) => void
+  mergeRemoteEntryFeeConfig: (remote: EntryFeeConfig | null | undefined) => void
   setSyncStatus: (status: 'idle' | 'syncing' | 'error', error?: string | null) => void
   markSynced: (at: number) => void
 
@@ -641,7 +642,13 @@ export const useStore = create<StoreState>()(
       },
 
       updateEntryFeeConfig: (updates) =>
-        set((s) => ({ entryFeeConfig: { ...s.entryFeeConfig, ...updates } })),
+        set((s) => ({
+          entryFeeConfig: {
+            ...s.entryFeeConfig,
+            ...updates,
+            lastModifiedAt: Date.now(),
+          },
+        })),
 
       // --- Door sync ---
       // Merge remote visitors into local: per id, the higher updatedAt wins.
@@ -663,6 +670,15 @@ export const useStore = create<StoreState>()(
         }
         if (!mutated) return
         set({ visitors: [...byId.values()] })
+      },
+
+      // Tier config sync — last writer (by lastModifiedAt) wins. Skips when
+      // remote is missing, malformed, or older/equal to local.
+      mergeRemoteEntryFeeConfig: (remote) => {
+        if (!remote || !Array.isArray(remote.tiers) || typeof remote.lastModifiedAt !== 'number') return
+        const local = get().entryFeeConfig
+        if ((local.lastModifiedAt ?? 0) >= remote.lastModifiedAt) return
+        set({ entryFeeConfig: remote })
       },
 
       setSyncStatus: (status, error = null) =>
@@ -734,7 +750,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'kohost-tab-tracker',
-      version: 7,
+      version: 8,
       // Don't persist cart — it's transient. Don't persist requestedTab — it's nav.
       partialize: (state) => ({
         eventName: state.eventName,
@@ -780,6 +796,16 @@ export const useStore = create<StoreState>()(
           // KoHo Friend flag on visitors
           const visitors = (state.visitors as Visitor[] | undefined) ?? []
           state.visitors = visitors.map((v) => ({ ...v, kohoFriend: v.kohoFriend ?? false }))
+        }
+        if (version < 8) {
+          // Add lastModifiedAt to entryFeeConfig for cross-device sync.
+          // 0 means "never edited" — first edit on any device beats it.
+          const cfg = (state.entryFeeConfig as Record<string, unknown> | undefined) ?? {}
+          state.entryFeeConfig = {
+            ...cfg,
+            tiers: Array.isArray(cfg.tiers) ? cfg.tiers : [],
+            lastModifiedAt: typeof cfg.lastModifiedAt === 'number' ? cfg.lastModifiedAt : 0,
+          }
         }
         return state as never
       },

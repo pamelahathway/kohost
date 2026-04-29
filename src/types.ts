@@ -81,6 +81,9 @@ export interface FeeTier {
 
 export interface EntryFeeConfig {
   tiers: FeeTier[]
+  // Last-modified timestamp used for cross-device sync conflict resolution.
+  // Bumped to Date.now() on every edit; 0 for unmodified defaults.
+  lastModifiedAt: number
 }
 
 export type AppTab = 'order' | 'session' | 'guests' | 'dashboard' | 'setup'

@@ -8,6 +8,7 @@ export function defaultEntryFeeConfig(): EntryFeeConfig {
       { id: generateId(), minStart: 15, minEnd: 60,   priceCents: 1000 },
       { id: generateId(), minStart: 60, minEnd: 9999, priceCents: 2000 },
     ],
+    lastModifiedAt: 0,
   }
 }
 
@@ -20,7 +21,10 @@ export function normalizeEntryFeeConfig(input: unknown): EntryFeeConfig {
   if (!input || typeof input !== 'object') return defaultEntryFeeConfig()
   const obj = input as Record<string, unknown>
   if (Array.isArray(obj.tiers)) {
-    return { tiers: obj.tiers as FeeTier[] }
+    return {
+      tiers: obj.tiers as FeeTier[],
+      lastModifiedAt: typeof obj.lastModifiedAt === 'number' ? obj.lastModifiedAt : 0,
+    }
   }
   // Legacy shape — convert to three tiers
   const freeUnder = (obj.freeUnderMinutes as number) ?? 15
@@ -33,6 +37,7 @@ export function normalizeEntryFeeConfig(input: unknown): EntryFeeConfig {
       { id: generateId(), minStart: freeUnder, minEnd: tier1Until,  priceCents: tier1Price },
       { id: generateId(), minStart: tier1Until, minEnd: 9999,       priceCents: tier2Price },
     ],
+    lastModifiedAt: 0,
   }
 }
 

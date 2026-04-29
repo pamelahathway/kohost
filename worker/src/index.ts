@@ -13,31 +13,64 @@ interface DoorVisitor {
   [k: string]: unknown
 }
 
+// Tier config — synced per /door cycle so other devices pick up Setup-screen
+// tier edits within the same 5s window as visitor changes. Last-writer-wins
+// by lastModifiedAt.
+interface DoorEntryFeeConfig {
+  tiers: unknown[]
+  lastModifiedAt: number
+}
+
+interface DoorState {
+  visitors: Record<string, DoorVisitor>
+  entryFeeConfig: DoorEntryFeeConfig | null
+}
+
 const DOOR_KEY = 'door-visitors'
 const DOOR_TTL_SECONDS = 172800 // 48h, matches /backup self-destruct window
 
-async function readDoor(env: Env): Promise<Record<string, DoorVisitor>> {
+async function readDoor(env: Env): Promise<DoorState> {
   const raw = await env.BACKUP_KV.get(DOOR_KEY)
-  if (!raw) return {}
+  if (!raw) return { visitors: {}, entryFeeConfig: null }
   try {
     const parsed = JSON.parse(raw)
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed as Record<string, DoorVisitor>
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { visitors: {}, entryFeeConfig: null }
     }
-    return {}
+    // New shape: { visitors: { [id]: visitor }, entryFeeConfig: ... | null }
+    if ('visitors' in parsed) {
+      const obj = parsed as Record<string, unknown>
+      const visitors = (obj.visitors && typeof obj.visitors === 'object' && !Array.isArray(obj.visitors))
+        ? obj.visitors as Record<string, DoorVisitor>
+        : {}
+      const cfgIn = obj.entryFeeConfig as DoorEntryFeeConfig | null | undefined
+      const entryFeeConfig =
+        cfgIn && Array.isArray(cfgIn.tiers) && typeof cfgIn.lastModifiedAt === 'number'
+          ? { tiers: cfgIn.tiers, lastModifiedAt: cfgIn.lastModifiedAt }
+          : null
+      return { visitors, entryFeeConfig }
+    }
+    // Legacy shape: bare { [id]: visitor } map — wrap it.
+    return { visitors: parsed as Record<string, DoorVisitor>, entryFeeConfig: null }
   } catch {
-    return {}
+    return { visitors: {}, entryFeeConfig: null }
   }
 }
 
-async function writeDoor(env: Env, map: Record<string, DoorVisitor>): Promise<void> {
-  await env.BACKUP_KV.put(DOOR_KEY, JSON.stringify(map), { expirationTtl: DOOR_TTL_SECONDS })
+async function writeDoor(env: Env, state: DoorState): Promise<void> {
+  await env.BACKUP_KV.put(DOOR_KEY, JSON.stringify(state), { expirationTtl: DOOR_TTL_SECONDS })
 }
 
 function isDoorVisitor(x: unknown): x is DoorVisitor {
   if (!x || typeof x !== 'object') return false
   const v = x as Record<string, unknown>
   return typeof v.id === 'string' && typeof v.updatedAt === 'number'
+}
+
+function isDoorEntryFeeConfig(x: unknown): x is DoorEntryFeeConfig {
+  if (!x || typeof x !== 'object') return false
+  const c = x as Record<string, unknown>
+  return Array.isArray(c.tiers) && typeof c.lastModifiedAt === 'number'
 }
 
 export default {
@@ -87,21 +120,23 @@ export default {
     }
 
     // ---------- Door sync ----------
-    // Returns the current visitors map plus server time so clients can detect
-    // clock skew. Visitors are returned as a plain array for client convenience.
     if (request.method === 'GET' && url.pathname === '/door') {
-      const map = await readDoor(env)
+      const state = await readDoor(env)
       return new Response(
-        JSON.stringify({ visitors: Object.values(map), serverTime: Date.now() }),
+        JSON.stringify({
+          visitors: Object.values(state.visitors),
+          entryFeeConfig: state.entryFeeConfig,
+          serverTime: Date.now(),
+        }),
         { headers: { 'Content-Type': 'application/json', ...cors } }
       )
     }
 
-    // PUT body: { visitors: DoorVisitor[] }. Server reads existing blob, merges
-    // each incoming record by id (higher updatedAt wins), writes back ONLY if
-    // a record actually changed. Clients send the full local list every poll
-    // so most cycles are no-op merges; without the mutated check we'd burn a
-    // KV put every poll (and blow past the 1000/day free tier in hours).
+    // PUT body: { visitors: DoorVisitor[]?, entryFeeConfig: DoorEntryFeeConfig? }.
+    // Server reads existing blob, merges per-id (higher updatedAt wins) for
+    // visitors, replaces entryFeeConfig only when incoming.lastModifiedAt
+    // exceeds stored. Writes back ONLY if something actually changed (free
+    // tier KV puts).
     if (request.method === 'PUT' && url.pathname === '/door') {
       let body: unknown
       try {
@@ -109,29 +144,40 @@ export default {
       } catch {
         return new Response('Invalid JSON', { status: 400, headers: cors })
       }
-      const incomingRaw = (body as { visitors?: unknown })?.visitors
-      if (!Array.isArray(incomingRaw)) {
-        return new Response('Missing visitors array', { status: 400, headers: cors })
+      const incomingVisitorsRaw = (body as { visitors?: unknown })?.visitors
+      const incomingConfigRaw = (body as { entryFeeConfig?: unknown })?.entryFeeConfig
+
+      const state = await readDoor(env)
+      let mutated = false
+
+      if (Array.isArray(incomingVisitorsRaw)) {
+        const incoming = incomingVisitorsRaw.filter(isDoorVisitor)
+        for (const v of incoming) {
+          const existing = state.visitors[v.id]
+          if (!existing || v.updatedAt > existing.updatedAt) {
+            state.visitors[v.id] = v
+            mutated = true
+          }
+        }
       }
 
-      const incoming = incomingRaw.filter(isDoorVisitor)
-      const map = await readDoor(env)
-      let mutated = false
-      for (const v of incoming) {
-        const existing = map[v.id]
-        if (!existing || v.updatedAt > existing.updatedAt) {
-          map[v.id] = v
+      if (isDoorEntryFeeConfig(incomingConfigRaw)) {
+        const stored = state.entryFeeConfig
+        if (!stored || incomingConfigRaw.lastModifiedAt > stored.lastModifiedAt) {
+          state.entryFeeConfig = incomingConfigRaw
           mutated = true
         }
       }
+
       if (mutated) {
-        await writeDoor(env, map)
+        await writeDoor(env, state)
       }
 
       return new Response(
         JSON.stringify({
           ok: true,
-          visitors: Object.values(map),
+          visitors: Object.values(state.visitors),
+          entryFeeConfig: state.entryFeeConfig,
           serverTime: Date.now(),
           mutated,
         }),

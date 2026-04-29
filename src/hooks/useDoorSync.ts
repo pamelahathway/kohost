@@ -31,12 +31,13 @@ export function useDoorSync(currentTab: AppTab) {
     async function tick() {
       if (inFlightRef.current) return
       inFlightRef.current = true
-      const { setSyncStatus, mergeRemoteVisitors, markSynced } = useStore.getState()
+      const { setSyncStatus, mergeRemoteVisitors, mergeRemoteEntryFeeConfig, markSynced } = useStore.getState()
       setSyncStatus('syncing')
       try {
         const result = await syncDoor()
         if (result.ok) {
           mergeRemoteVisitors(result.visitors)
+          mergeRemoteEntryFeeConfig(result.entryFeeConfig)
           markSynced(Date.now())
         } else {
           setSyncStatus('error', result.error)
