@@ -28,34 +28,38 @@ export function TopBar({ currentTab, onTabChange, eventName, eventMode }: TopBar
     : 'text-gray-400'
 
   return (
-    <div className="flex items-center justify-between px-5 h-14 bg-white border-b border-gray-200 shrink-0">
-      {/* Event name */}
-      <span className="text-gray-900 font-bold text-base w-48 truncate">{eventName}</span>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-        {tabs.map(({ id, label, icon: Icon }) => {
-          const isActive = currentTab === id
-          return (
-            <button
-              key={id}
-              onClick={() => onTabChange(id)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? `bg-white ${activeColor} shadow-sm`
-                  : 'text-gray-500 hover:text-gray-800'
-              }`}
-            >
-              <Icon size={16} />
-              {label}
-            </button>
-          )
-        })}
+    <div className="bg-white border-b border-gray-200 shrink-0">
+      {/* Top row: event name + wordmark — always visible */}
+      <div className="flex items-center justify-between px-5 h-12 gap-3">
+        <span className="text-gray-900 font-bold text-base flex-1 min-w-0 truncate">
+          {eventName}
+        </span>
+        <span className={`${wordmarkColor} font-black text-lg tracking-tight transition-colors shrink-0`}>
+          KoHost
+        </span>
       </div>
 
-      {/* KoHost wordmark — colour reflects active event mode */}
-      <div className="w-48 flex justify-end">
-        <span className={`${wordmarkColor} font-black text-lg tracking-tight transition-colors`}>KoHost</span>
+      {/* Tabs row — horizontal scroll when narrower than the pill */}
+      <div className="px-3 pb-2 pt-0.5 overflow-x-auto">
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit mx-auto">
+          {tabs.map(({ id, label, icon: Icon }) => {
+            const isActive = currentTab === id
+            return (
+              <button
+                key={id}
+                onClick={() => onTabChange(id)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${
+                  isActive
+                    ? `bg-white ${activeColor} shadow-sm`
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <Icon size={16} />
+                {label}
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

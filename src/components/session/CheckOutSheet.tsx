@@ -152,6 +152,8 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
               />
             </div>
             <button
+              onMouseDown={(e) => e.preventDefault()}
+              tabIndex={-1}
               onClick={() => nextTierUp !== undefined && setAmountCents(nextTierUp)}
               disabled={nextTierUp === undefined}
               aria-label="Next tier up"
@@ -161,6 +163,8 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
               <Plus size={22} />
             </button>
             <button
+              onMouseDown={(e) => e.preventDefault()}
+              tabIndex={-1}
               onClick={() => nextTierDown !== undefined && setAmountCents(nextTierDown)}
               disabled={nextTierDown === undefined}
               aria-label="Next tier down"
@@ -172,6 +176,8 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
           </div>
           {overridden && (
             <button
+              onMouseDown={(e) => e.preventDefault()}
+              tabIndex={-1}
               onClick={resetToAuto}
               className="mt-2 text-xs font-medium text-amber-700 hover:text-amber-800 underline"
             >
