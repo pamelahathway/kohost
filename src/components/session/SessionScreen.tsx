@@ -114,9 +114,11 @@ export function SessionScreen() {
             })
           )}
 
-          {/* Paid section */}
+          {/* Paid section — visually distinct from Inside: vertical gap above,
+              muted row colours so it reads as "done". KoHo badge keeps full
+              colour so it still pops. */}
           {paid.length > 0 && (
-            <>
+            <div className="mt-6 border-t-4 border-gray-100">
               <SectionHeader label="Paid" count={paid.length} />
               {paid.map((v) => {
                 const exitedAt = v.exitedAt ?? Date.now()
@@ -125,24 +127,24 @@ export function SessionScreen() {
                 return (
                   <div
                     key={v.id}
-                    className="w-full flex items-center gap-3 px-5 py-3 border-b border-gray-100 min-h-[64px]"
+                    className="w-full flex items-center gap-3 px-5 py-3 border-b border-gray-100 min-h-[64px] bg-gray-50/60"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-gray-900 truncate">{v.name}</span>
+                        <span className="font-medium text-gray-500 truncate">{v.name}</span>
                         {v.kohoFriend && <KohoBadge />}
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
+                      <div className="text-xs text-gray-400 mt-0.5">
                         {formatTimeOfDay(v.enteredAt)} → {formatTimeOfDay(exitedAt)} · {formatDuration(stayMin)}
                       </div>
                     </div>
-                    <div className={`text-base font-bold shrink-0 ${amount === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
+                    <div className="text-base font-semibold text-gray-400 shrink-0">
                       {amount === 0 ? 'free' : formatPrice(amount)}
                     </div>
                   </div>
                 )
               })}
-            </>
+            </div>
           )}
 
           {/* spacer at the bottom so last row isn't cut off on phones with home indicator */}
