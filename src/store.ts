@@ -480,7 +480,15 @@ export const useStore = create<StoreState>()(
       },
 
       // --- Reset ---
-      resetEvent: () =>
+      resetEvent: () => {
+        const now = Date.now()
+        const deviceId = getDeviceId()
+        // Tombstone all non-deleted visitors (instead of dropping the array)
+        // so other devices learn of the deletion via /door sync. Already-
+        // deleted records stay as-is. Worker's KV blob expires after 48h.
+        const tombstoned = get().visitors.map((v) =>
+          v.deleted ? v : { ...v, deleted: true, updatedAt: now, deviceId }
+        )
         set({
           eventName: 'My Event',
           eventMode: null,
@@ -488,9 +496,10 @@ export const useStore = create<StoreState>()(
           orders: [],
           payments: [],
           cart: [],
-          visitors: [],
+          visitors: tombstoned,
           lastActiveGuestId: null,
-        }),
+        })
+      },
 
       // --- Event management ---
       saveCurrentEvent: () => {
@@ -515,7 +524,15 @@ export const useStore = create<StoreState>()(
           setupComplete: true,
         }),
 
-      startNewEvent: () =>
+      startNewEvent: () => {
+        const now = Date.now()
+        const deviceId = getDeviceId()
+        // Tombstone existing visitors so the deletion syncs to other devices
+        // via /door (same reason as resetEvent — empty local list alone
+        // wouldn't propagate; worker keeps stale records).
+        const tombstoned = get().visitors.map((v) =>
+          v.deleted ? v : { ...v, deleted: true, updatedAt: now, deviceId }
+        )
         set({
           eventName: 'My Event',
           setupComplete: false,
@@ -525,11 +542,12 @@ export const useStore = create<StoreState>()(
           orders: [],
           payments: [],
           cart: [],
-          visitors: [],
+          visitors: tombstoned,
           lastActiveGuestId: null,
           _undoSnapshot: null,
           undoLabel: null,
-        }),
+        })
+      },
 
       // --- Menu import ---
       replaceMenu: (newCategories) => {
