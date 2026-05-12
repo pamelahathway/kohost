@@ -22,25 +22,22 @@ export function TopBar({ currentTab, onTabChange, eventName, eventMode }: TopBar
     eventMode === 'session' ? 'text-amber-600'
     : eventMode === 'brunch' ? 'text-green-700'
     : 'text-gray-700'
-  // Ring colour on the logo reflects the active event mode so the brand
-  // mark stays the same but you still see at a glance which mode is on.
-  const logoRing =
-    eventMode === 'session' ? 'ring-amber-500'
-    : eventMode === 'brunch' ? 'ring-green-600'
-    : 'ring-transparent'
 
   return (
     <div className="bg-white border-b border-gray-200 shrink-0">
-      {/* Top row: event name + logo — always visible */}
+      {/* Top row: event name + KoHost wordmark + logo — always visible */}
       <div className="flex items-center justify-between px-5 h-14 gap-3">
         <span className="text-gray-900 font-bold text-base flex-1 min-w-0 truncate">
           {eventName}
         </span>
-        <img
-          src="/koho-logo.jpeg"
-          alt="KoHost"
-          className={`h-9 w-auto rounded-md shrink-0 ring-2 ring-offset-2 ring-offset-white transition-colors ${logoRing}`}
-        />
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-amber-600 font-black text-lg tracking-tight">KoHost</span>
+          <img
+            src="/koho-logo.jpeg"
+            alt="KoHost logo"
+            className="h-9 w-9 rounded-md object-cover shrink-0"
+          />
+        </div>
       </div>
 
       {/* Tabs row — horizontal scroll when narrower than the pill */}
