@@ -38,8 +38,8 @@ export function TopBar({ currentTab, onTabChange, eventName, eventMode }: TopBar
         </span>
         <img
           src="/koho-logo.jpeg"
-          alt="KoHo"
-          className={`h-9 w-9 rounded-md object-cover shrink-0 ring-2 ring-offset-2 ring-offset-white transition-colors ${logoRing}`}
+          alt="KoHost"
+          className={`h-9 w-auto rounded-md shrink-0 ring-2 ring-offset-2 ring-offset-white transition-colors ${logoRing}`}
         />
       </div>
 
