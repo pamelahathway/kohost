@@ -31,7 +31,7 @@ export function TopBar({ currentTab, onTabChange, eventName, eventMode }: TopBar
           {eventName}
         </span>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-amber-600 font-black text-lg tracking-tight">KoHost</span>
+          <span className="text-amber-600 font-black text-lg tracking-tight">KoHost by</span>
           <img
             src="/koho-logo.jpeg"
             alt="KoHost logo"
