@@ -768,7 +768,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'kohost-tab-tracker',
-      version: 8,
+      version: 9,
       // Don't persist cart — it's transient. Don't persist requestedTab — it's nav.
       partialize: (state) => ({
         eventName: state.eventName,
@@ -823,6 +823,15 @@ export const useStore = create<StoreState>()(
             ...cfg,
             tiers: Array.isArray(cfg.tiers) ? cfg.tiers : [],
             lastModifiedAt: typeof cfg.lastModifiedAt === 'number' ? cfg.lastModifiedAt : 0,
+          }
+        }
+        if (version < 9) {
+          // Add kohoFriendPriceCents to entryFeeConfig — was previously
+          // hard-coded at 2500 cents in CheckOutSheet.
+          const cfg = (state.entryFeeConfig as Record<string, unknown> | undefined) ?? {}
+          state.entryFeeConfig = {
+            ...cfg,
+            kohoFriendPriceCents: typeof cfg.kohoFriendPriceCents === 'number' ? cfg.kohoFriendPriceCents : 2500,
           }
         }
         return state as never

@@ -1,4 +1,4 @@
-import { Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
 import { useStore } from '../../store'
 import type { FeeTier } from '../../types'
 import { formatPrice, parsePriceInput } from '../../utils/formatPrice'
@@ -12,6 +12,9 @@ const NO_TIERS: FeeTier[] = []
 
 export function SessionSettings() {
   const tiers = useStore((s) => s.entryFeeConfig?.tiers ?? NO_TIERS)
+  const kohoFriendPriceCents = useStore(
+    (s) => s.entryFeeConfig?.kohoFriendPriceCents ?? 2500
+  )
   const update = useStore((s) => s.updateEntryFeeConfig)
 
   function patchTier(id: string, patch: Partial<FeeTier>) {
@@ -47,6 +50,27 @@ export function SessionSettings() {
       <p className="text-xs text-gray-400 mb-4">
         Define one row per tier. The check-out screen suggests the matching tier’s price by duration; staff can override.
       </p>
+
+      {/* Summary — read-only, shown above the editable fields so the current rules are visible at a glance */}
+      <div className="mb-4 p-3 rounded-xl bg-gray-50 border border-gray-100 max-w-2xl text-xs text-gray-600 space-y-0.5">
+        {tiers.length === 0 ? (
+          <div className="text-gray-400">No tiers configured.</div>
+        ) : (
+          tiers.map((tier, i) => (
+            <div key={tier.id}>
+              <span className="font-semibold text-gray-700">Tier {i + 1}:</span>{' '}
+              {tier.minStart}–{tier.minEnd} min →{' '}
+              {tier.priceCents === 0 ? 'free' : formatPrice(tier.priceCents)}
+            </div>
+          ))
+        )}
+        <div className="pt-1">
+          <span className="font-semibold text-gray-700 inline-flex items-center gap-1">
+            <Sparkles size={11} /> KoHo Friend:
+          </span>{' '}
+          {formatPrice(kohoFriendPriceCents)}
+        </div>
+      </div>
 
       <div className="flex flex-col gap-2 max-w-2xl">
         {tiers.map((tier, i) => (
@@ -113,13 +137,22 @@ export function SessionSettings() {
         </button>
       </div>
 
-      <div className="text-xs text-gray-500 mt-4 max-w-2xl space-y-0.5">
-        {tiers.map((tier, i) => (
-          <div key={tier.id}>
-            Tier {i + 1}: {tier.minStart}–{tier.minEnd} min →{' '}
-            {tier.priceCents === 0 ? 'free' : formatPrice(tier.priceCents)}
-          </div>
-        ))}
+      {/* KoHo Friend price — editable, lives below tier editor */}
+      <div className="mt-6 pt-4 border-t border-gray-100 max-w-2xl">
+        <label className={labelClass + ' flex items-center gap-1'}>
+          <Sparkles size={11} /> KoHo Friend price (€)
+        </label>
+        <input
+          key={kohoFriendPriceCents}
+          type="text"
+          inputMode="decimal"
+          defaultValue={(kohoFriendPriceCents / 100).toFixed(2)}
+          onBlur={(e) => update({ kohoFriendPriceCents: parsePriceInput(e.target.value) })}
+          className={numClass + ' max-w-[200px]'}
+        />
+        <p className="text-[11px] text-gray-400 mt-1">
+          Used by the "Becomes KoHo Friend" button on check-out.
+        </p>
       </div>
     </div>
   )

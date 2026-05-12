@@ -10,7 +10,7 @@ interface CheckOutSheetProps {
   onClose: () => void
 }
 
-const KOHO_FRIEND_CENTS = 2500
+const KOHO_FRIEND_FALLBACK_CENTS = 2500
 
 export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
   const visitor = useStore((s) => s.visitors.find((v) => v.id === visitorId))
@@ -37,6 +37,8 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
     () => (visitor ? calculateVisitorFee(visitor, now, config) : 0),
     [visitor, now, config]
   )
+
+  const kohoPriceCents = config?.kohoFriendPriceCents ?? KOHO_FRIEND_FALLBACK_CENTS
 
   // Initialize editable amount once when sheet opens / visitor loads
   const [amountText, setAmountText] = useState(() => (autoCents / 100).toFixed(2))
@@ -91,7 +93,7 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
   }
 
   function selectKohoFriend() {
-    setAmountCents(KOHO_FRIEND_CENTS, { keepKoho: true })
+    setAmountCents(kohoPriceCents, { keepKoho: true })
     setKohoSelected(true)
   }
 
@@ -194,7 +196,7 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
             }`}
           >
             <Sparkles size={18} />
-            {kohoSelected ? 'KoHo Friend' : 'Becomes KoHo Friend'} · {formatPrice(KOHO_FRIEND_CENTS)}
+            {kohoSelected ? 'KoHo Friend' : 'Becomes KoHo Friend'} · {formatPrice(kohoPriceCents)}
           </button>
 
           <button

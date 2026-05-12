@@ -81,6 +81,8 @@ export interface FeeTier {
 
 export interface EntryFeeConfig {
   tiers: FeeTier[]
+  // Price set by the "Becomes KoHo Friend" button at check-out (cents).
+  kohoFriendPriceCents: number
   // Last-modified timestamp used for cross-device sync conflict resolution.
   // Bumped to Date.now() on every edit; 0 for unmodified defaults.
   lastModifiedAt: number

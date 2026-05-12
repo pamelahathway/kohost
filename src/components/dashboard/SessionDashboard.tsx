@@ -26,7 +26,7 @@ export function SessionDashboard() {
 
     const revenue = paid.reduce((sum, v) => sum + (v.paidAmount ?? 0), 0)
     const owedNow = active.reduce(
-      (sum, v) => sum + calculateVisitorFee(v, now, { tiers, lastModifiedAt: 0 }),
+      (sum, v) => sum + calculateVisitorFee(v, now, { tiers, kohoFriendPriceCents: 0, lastModifiedAt: 0 }),
       0
     )
 
