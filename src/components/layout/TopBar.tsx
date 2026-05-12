@@ -25,17 +25,17 @@ export function TopBar({ currentTab, onTabChange, eventName, eventMode }: TopBar
 
   return (
     <div className="bg-white border-b border-gray-200 shrink-0">
-      {/* Top row: event name + KoHost wordmark + logo — always visible */}
-      <div className="flex items-center justify-between px-5 h-14 gap-3">
+      {/* Top row: event name | KoHost (centered) | logo */}
+      <div className="flex items-center px-5 h-14 gap-3">
         <span className="text-gray-900 font-bold text-base flex-1 min-w-0 truncate">
           {eventName}
         </span>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-amber-600 font-black text-lg tracking-tight">KoHost by</span>
+        <span className="text-amber-600 font-black text-lg tracking-tight shrink-0">KoHost</span>
+        <div className="flex-1 flex justify-end min-w-0">
           <img
             src="/koho-logo.jpeg"
             alt="KoHost logo"
-            className="h-9 w-9 rounded-md object-cover shrink-0"
+            className="h-9 w-9 object-cover shrink-0"
           />
         </div>
       </div>
