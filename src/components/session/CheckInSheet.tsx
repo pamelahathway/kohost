@@ -31,7 +31,7 @@ export function CheckInSheet({ onClose }: CheckInSheetProps) {
   const duplicate = !!trimmed && active.some((v) => v.name.toLowerCase() === trimmed.toLowerCase())
 
   function handleConfirm() {
-    if (!trimmed) return
+    if (!trimmed || duplicate) return
     addVisitor(trimmed)
     autoBackup()
     onClose()
@@ -76,8 +76,8 @@ export function CheckInSheet({ onClose }: CheckInSheetProps) {
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           />
           {duplicate && (
-            <div className="mt-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              "{trimmed}" is already inside. Check in anyway?
+            <div className="mt-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              "{trimmed}" is already inside. Please use a different name.
             </div>
           )}
         </div>
@@ -86,7 +86,7 @@ export function CheckInSheet({ onClose }: CheckInSheetProps) {
         <div className="px-5 py-4 border-t border-gray-200">
           <button
             onClick={handleConfirm}
-            disabled={!trimmed}
+            disabled={!trimmed || duplicate}
             className="w-full px-4 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold active:scale-[0.99] transition min-h-[48px] disabled:opacity-40 disabled:pointer-events-none"
           >
             Check in

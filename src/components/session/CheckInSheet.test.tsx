@@ -88,13 +88,31 @@ describe('CheckInSheet', () => {
     expect(useStore.getState().visitors.map((v) => v.name)).toContain('Bob')
   })
 
-  it('shows a duplicate-name warning when the name matches an active visitor', () => {
+  it('shows a duplicate-name message when the name matches an active visitor', () => {
     useStore.setState({ visitors: [makeVisitor('Anna')] })
     render(<CheckInSheet onClose={() => {}} />)
     fireEvent.change(screen.getByPlaceholderText(/visitor name/i), {
       target: { value: 'Anna' },
     })
     expect(screen.getByText(/already inside/i)).toBeInTheDocument()
+  })
+
+  it('disables the Check in button on a duplicate name', () => {
+    useStore.setState({ visitors: [makeVisitor('Anna')] })
+    render(<CheckInSheet onClose={() => {}} />)
+    fireEvent.change(screen.getByPlaceholderText(/visitor name/i), {
+      target: { value: 'Anna' },
+    })
+    expect(screen.getByRole('button', { name: /check in/i })).toBeDisabled()
+  })
+
+  it('Enter key does not commit a duplicate name', () => {
+    useStore.setState({ visitors: [makeVisitor('Anna')] })
+    render(<CheckInSheet onClose={() => {}} />)
+    const input = screen.getByPlaceholderText(/visitor name/i)
+    fireEvent.change(input, { target: { value: 'Anna' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(useStore.getState().visitors.filter((v) => v.name === 'Anna')).toHaveLength(1)
   })
 
   it('duplicate check ignores already-checked-out visitors', () => {
@@ -124,13 +142,25 @@ describe('CheckInSheet', () => {
     expect(screen.getByText(/already inside/i)).toBeInTheDocument()
   })
 
-  it('allows check-in even when the duplicate warning is visible (soft warning)', () => {
+  it('blocks check-in when name matches an active visitor', () => {
     useStore.setState({ visitors: [makeVisitor('Anna')] })
     render(<CheckInSheet onClose={() => {}} />)
     fireEvent.change(screen.getByPlaceholderText(/visitor name/i), {
       target: { value: 'Anna' },
     })
     fireEvent.click(screen.getByRole('button', { name: /check in/i }))
-    expect(useStore.getState().visitors.filter((v) => v.name === 'Anna')).toHaveLength(2)
+    expect(useStore.getState().visitors.filter((v) => v.name === 'Anna')).toHaveLength(1)
+  })
+
+  it('unblocks when the user changes the name to something unique', () => {
+    useStore.setState({ visitors: [makeVisitor('Anna')] })
+    render(<CheckInSheet onClose={() => {}} />)
+    const input = screen.getByPlaceholderText(/visitor name/i)
+    fireEvent.change(input, { target: { value: 'Anna' } })
+    expect(screen.getByRole('button', { name: /check in/i })).toBeDisabled()
+    fireEvent.change(input, { target: { value: 'Anna B.' } })
+    expect(screen.getByRole('button', { name: /check in/i })).not.toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: /check in/i }))
+    expect(useStore.getState().visitors.map((v) => v.name)).toContain('Anna B.')
   })
 })
