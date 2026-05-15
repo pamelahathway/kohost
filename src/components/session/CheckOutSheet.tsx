@@ -17,6 +17,7 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
   const config = useStore((s) => s.entryFeeConfig)
   const checkOutVisitor = useStore((s) => s.checkOutVisitor)
   const removeVisitor = useStore((s) => s.removeVisitor)
+  const markPendingUndo = useStore((s) => s.markPendingUndo)
 
   const [now, setNow] = useState(Date.now())
 
@@ -76,6 +77,8 @@ export function CheckOutSheet({ visitorId, onClose }: CheckOutSheetProps) {
       overridden,
       kohoFriend: kohoSelected,
     })
+    // Surface the 10s undo toast in SessionScreen
+    markPendingUndo(visitor!.id)
     autoBackup()
     onClose()
   }

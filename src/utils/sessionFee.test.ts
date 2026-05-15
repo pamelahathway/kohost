@@ -18,6 +18,7 @@ function makeVisitor(enteredMinutesAgo: number): Visitor {
     paidVia: null,
     amountOverridden: false,
     kohoFriend: false,
+    reopenHistory: [],
     deleted: false,
     updatedAt: Date.now(),
     deviceId: 'dev-1',

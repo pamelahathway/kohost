@@ -44,6 +44,7 @@ function makeVisitor(name: string, opts: Partial<Visitor> = {}): Visitor {
     paidVia: null,
     amountOverridden: false,
     kohoFriend: false,
+    reopenHistory: [],
     deleted: false,
     updatedAt: Date.now(),
     deviceId: 'dev',
@@ -190,5 +191,66 @@ describe('SessionScreen — Add visitor', () => {
     fireEvent.click(screen.getByRole('button', { name: /add visitor/i }))
     // CheckInSheet renders an input with the visitor-name placeholder
     expect(screen.getByPlaceholderText(/visitor name/i)).toBeInTheDocument()
+  })
+})
+
+describe('SessionScreen — Reopen flow', () => {
+  beforeEach(resetStore)
+
+  it('tapping a paid row opens the ReopenSheet for that visitor', () => {
+    useStore.setState({
+      visitors: [
+        makeVisitor('Carla', {
+          exitedAt: Date.now(),
+          paidAt: Date.now(),
+          paidAmount: 1000,
+          paidVia: 'cash',
+        }),
+      ],
+    })
+    render(<SessionScreen />)
+    fireEvent.click(screen.getByRole('button', { name: /Carla/i }))
+    // ReopenSheet renders a "Reopen check-in" confirm button at the bottom
+    expect(screen.getByRole('button', { name: /reopen check-in/i })).toBeInTheDocument()
+    // And a reason picker
+    expect(screen.getByLabelText(/marked paid by mistake/i)).toBeInTheDocument()
+  })
+
+  it('renders the undo toast when pendingUndoVisitorId is set', () => {
+    useStore.setState({
+      visitors: [
+        makeVisitor('Dan', {
+          exitedAt: Date.now(),
+          paidAt: Date.now(),
+          paidAmount: 1000,
+          paidVia: 'cash',
+        }),
+      ],
+      pendingUndoVisitorId: 'v-Dan',
+    })
+    render(<SessionScreen />)
+    expect(screen.getByText(/marked paid/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /undo/i })).toBeInTheDocument()
+  })
+
+  it('tapping Undo in the toast reopens the visitor with "Marked paid by mistake"', () => {
+    useStore.setState({
+      visitors: [
+        makeVisitor('Eve', {
+          exitedAt: Date.now(),
+          paidAt: Date.now(),
+          paidAmount: 1000,
+          paidVia: 'cash',
+        }),
+      ],
+      pendingUndoVisitorId: 'v-Eve',
+    })
+    render(<SessionScreen />)
+    fireEvent.click(screen.getByRole('button', { name: /undo/i }))
+    const v = useStore.getState().visitors[0]
+    expect(v.exitedAt).toBeNull()
+    expect(v.paidAmount).toBeNull()
+    expect(v.reopenHistory[0].reason).toBe('Marked paid by mistake')
+    expect(v.reopenHistory[0].previousAmount).toBe(1000)
   })
 })

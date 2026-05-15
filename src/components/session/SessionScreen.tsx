@@ -1,21 +1,36 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DoorOpen, Sparkles, UserPlus } from 'lucide-react'
+import { DoorOpen, RotateCcw, Sparkles, UserPlus } from 'lucide-react'
 import { useStore } from '../../store'
 import { calculateVisitorFee, formatDuration, formatTimeOfDay } from '../../utils/sessionFee'
 import { formatPrice } from '../../utils/formatPrice'
+import { autoBackup } from '../../utils/autoBackup'
 import { ModeEmptyState } from '../shared/ModeEmptyState'
 import { CheckInSheet } from './CheckInSheet'
 import { CheckOutSheet } from './CheckOutSheet'
+import { ReopenSheet } from './ReopenSheet'
 import { SyncIndicator } from './SyncIndicator'
+
+const UNDO_TOAST_MS = 10_000
 
 export function SessionScreen() {
   const visitors = useStore((s) => s.visitors)
   const config = useStore((s) => s.entryFeeConfig)
   const eventMode = useStore((s) => s.eventMode)
+  const pendingUndoVisitorId = useStore((s) => s.pendingUndoVisitorId)
+  const markPendingUndo = useStore((s) => s.markPendingUndo)
+  const reopenVisitor = useStore((s) => s.reopenVisitor)
 
   const [now, setNow] = useState(Date.now())
   const [sheetVisitorId, setSheetVisitorId] = useState<string | null>(null)
+  const [reopenVisitorId, setReopenVisitorId] = useState<string | null>(null)
   const [showCheckIn, setShowCheckIn] = useState(false)
+
+  // Auto-dismiss the undo toast after 10s
+  useEffect(() => {
+    if (!pendingUndoVisitorId) return
+    const id = setTimeout(() => markPendingUndo(null), UNDO_TOAST_MS)
+    return () => clearTimeout(id)
+  }, [pendingUndoVisitorId, markPendingUndo])
 
   // Tick every 15s so durations and tier prices stay current
   useEffect(() => {
@@ -116,7 +131,7 @@ export function SessionScreen() {
 
           {/* Paid section — visually distinct from Inside: vertical gap above,
               muted row colours so it reads as "done". KoHo badge keeps full
-              colour so it still pops. */}
+              colour so it still pops. Tap a row to reopen the check-in. */}
           {paid.length > 0 && (
             <div className="mt-6 border-t-4 border-gray-100">
               <SectionHeader label="Paid" count={paid.length} />
@@ -125,9 +140,10 @@ export function SessionScreen() {
                 const stayMin = (exitedAt - v.enteredAt) / 60000
                 const amount = v.paidAmount ?? 0
                 return (
-                  <div
+                  <button
                     key={v.id}
-                    className="w-full flex items-center gap-3 px-5 py-3 border-b border-gray-100 min-h-[64px] bg-gray-50/60"
+                    onClick={() => setReopenVisitorId(v.id)}
+                    className="w-full flex items-center gap-3 px-5 py-3 border-b border-gray-100 min-h-[64px] bg-gray-50/60 hover:bg-gray-100 active:bg-gray-200 text-left"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
@@ -141,7 +157,7 @@ export function SessionScreen() {
                     <div className="text-base font-semibold text-gray-400 shrink-0">
                       {amount === 0 ? 'free' : formatPrice(amount)}
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -159,6 +175,36 @@ export function SessionScreen() {
           onClose={() => setSheetVisitorId(null)}
         />
       )}
+      {reopenVisitorId && (
+        <ReopenSheet
+          visitorId={reopenVisitorId}
+          onClose={() => setReopenVisitorId(null)}
+        />
+      )}
+      {pendingUndoVisitorId && (() => {
+        const v = visitors.find((x) => x.id === pendingUndoVisitorId)
+        if (!v) return null
+        return (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 max-w-sm w-[calc(100%-2rem)]">
+            <div className="bg-gray-900 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-3">
+              <div className="flex-1 min-w-0 text-sm">
+                <span className="font-semibold truncate">{v.name}</span>
+                <span className="text-gray-300"> marked paid</span>
+              </div>
+              <button
+                onClick={() => {
+                  reopenVisitor(v.id, 'Marked paid by mistake')
+                  autoBackup()
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-gray-900 text-sm font-semibold active:scale-[0.97] transition"
+              >
+                <RotateCcw size={14} />
+                Undo
+              </button>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

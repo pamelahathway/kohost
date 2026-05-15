@@ -10,6 +10,7 @@ import type {
   PaidLineItem,
   CartItem,
   Visitor,
+  ReopenRecord,
   EntryFeeConfig,
   EventMode,
 } from './types'
@@ -126,8 +127,13 @@ interface StoreState {
   // Session (time-based entry fee)
   addVisitor: (name: string) => void
   checkOutVisitor: (id: string, opts: { amountCents: number; paidVia: 'cash' | 'sumup'; overridden: boolean; kohoFriend: boolean }) => void
+  reopenVisitor: (id: string, reason: string) => void
   removeVisitor: (id: string) => void
   updateEntryFeeConfig: (updates: Partial<EntryFeeConfig>) => void
+
+  // Undo support — recently-paid visitor ID for the bottom toast
+  pendingUndoVisitorId: string | null
+  markPendingUndo: (id: string | null) => void
 
   // Door sync
   mergeRemoteVisitors: (remote: Visitor[]) => void
@@ -165,6 +171,9 @@ export const useStore = create<StoreState>()(
       syncStatus: 'idle',
       lastSyncedAt: null,
       syncError: null,
+
+      pendingUndoVisitorId: null,
+      markPendingUndo: (id) => set({ pendingUndoVisitorId: id }),
 
       // Navigation
       setNavigateToGuestId: (guestId) => set({ navigateToGuestId: guestId }),
@@ -620,6 +629,7 @@ export const useStore = create<StoreState>()(
           paidVia: null,
           amountOverridden: false,
           kohoFriend: false,
+          reopenHistory: [],
           deleted: false,
           updatedAt: now,
           deviceId: getDeviceId(),
@@ -656,6 +666,42 @@ export const useStore = create<StoreState>()(
               ? { ...v, deleted: true, updatedAt: now, deviceId: getDeviceId() }
               : v
           ),
+        }))
+      },
+
+      // Revert a checked-out visitor to active. Snapshots the previous
+      // payment into reopenHistory for audit, clears exitedAt/paidAmount/
+      // paidAt/paidVia/kohoFriend/amountOverridden. enteredAt is preserved
+      // so the tier calculator still reflects the actual time spent. Syncs
+      // to other devices via /door (bumped updatedAt).
+      reopenVisitor: (id, reason) => {
+        const now = Date.now()
+        set((s) => ({
+          visitors: s.visitors.map((v) => {
+            if (v.id !== id) return v
+            if (!v.exitedAt) return v // no-op if not checked out
+            const record: ReopenRecord = {
+              at: now,
+              reason,
+              previousAmount: v.paidAmount,
+              previousPaidVia: v.paidVia,
+              previousKohoFriend: v.kohoFriend,
+            }
+            return {
+              ...v,
+              exitedAt: null,
+              paidAmount: null,
+              paidAt: null,
+              paidVia: null,
+              amountOverridden: false,
+              kohoFriend: false,
+              reopenHistory: [...v.reopenHistory, record],
+              updatedAt: now,
+              deviceId: getDeviceId(),
+            }
+          }),
+          // Clear the toast — the undo just happened.
+          pendingUndoVisitorId: s.pendingUndoVisitorId === id ? null : s.pendingUndoVisitorId,
         }))
       },
 
@@ -768,7 +814,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'kohost-tab-tracker',
-      version: 9,
+      version: 10,
       // Don't persist cart — it's transient. Don't persist requestedTab — it's nav.
       partialize: (state) => ({
         eventName: state.eventName,
@@ -833,6 +879,14 @@ export const useStore = create<StoreState>()(
             ...cfg,
             kohoFriendPriceCents: typeof cfg.kohoFriendPriceCents === 'number' ? cfg.kohoFriendPriceCents : 2500,
           }
+        }
+        if (version < 10) {
+          // Empty reopenHistory on existing visitors
+          const visitors = (state.visitors as Visitor[] | undefined) ?? []
+          state.visitors = visitors.map((v) => ({
+            ...v,
+            reopenHistory: Array.isArray(v.reopenHistory) ? v.reopenHistory : [],
+          }))
         }
         return state as never
       },

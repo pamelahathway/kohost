@@ -42,6 +42,7 @@ function makeRemoteVisitor(overrides: Partial<Visitor> & { id: string; updatedAt
     paidVia: null,
     amountOverridden: false,
     kohoFriend: false,
+    reopenHistory: [],
     deleted: false,
     deviceId: 'remote-device',
   }
@@ -134,6 +135,104 @@ describe('addVisitor + checkOutVisitor', () => {
         resolve()
       }, 2)
     })
+  })
+})
+
+describe('reopenVisitor', () => {
+  beforeEach(resetStore)
+
+  function checkInAndPayAnna() {
+    useStore.getState().addVisitor('Anna')
+    const id = useStore.getState().visitors[0].id
+    useStore.getState().checkOutVisitor(id, {
+      amountCents: 1000,
+      paidVia: 'cash',
+      overridden: false,
+      kohoFriend: false,
+    })
+    return id
+  }
+
+  it('clears payment fields so the visitor returns to Inside', () => {
+    const id = checkInAndPayAnna()
+    useStore.getState().reopenVisitor(id, 'Marked paid by mistake')
+    const v = useStore.getState().visitors[0]
+    expect(v.exitedAt).toBeNull()
+    expect(v.paidAmount).toBeNull()
+    expect(v.paidAt).toBeNull()
+    expect(v.paidVia).toBeNull()
+    expect(v.amountOverridden).toBe(false)
+    expect(v.kohoFriend).toBe(false)
+  })
+
+  it('preserves enteredAt so the tier calculator still reflects real time', () => {
+    useStore.getState().addVisitor('Anna')
+    const original = useStore.getState().visitors[0].enteredAt
+    const id = useStore.getState().visitors[0].id
+    useStore.getState().checkOutVisitor(id, {
+      amountCents: 1000, paidVia: 'cash', overridden: false, kohoFriend: false,
+    })
+    useStore.getState().reopenVisitor(id, 'Wrong amount entered')
+    expect(useStore.getState().visitors[0].enteredAt).toBe(original)
+  })
+
+  it('appends a record to reopenHistory with the previous payment snapshot', () => {
+    useStore.getState().addVisitor('Anna')
+    const id = useStore.getState().visitors[0].id
+    useStore.getState().checkOutVisitor(id, {
+      amountCents: 2500, paidVia: 'cash', overridden: true, kohoFriend: true,
+    })
+    useStore.getState().reopenVisitor(id, 'Wrong visitor')
+    const v = useStore.getState().visitors[0]
+    expect(v.reopenHistory).toHaveLength(1)
+    expect(v.reopenHistory[0].reason).toBe('Wrong visitor')
+    expect(v.reopenHistory[0].previousAmount).toBe(2500)
+    expect(v.reopenHistory[0].previousPaidVia).toBe('cash')
+    expect(v.reopenHistory[0].previousKohoFriend).toBe(true)
+    expect(v.reopenHistory[0].at).toBeGreaterThan(0)
+  })
+
+  it('bumps updatedAt so the change syncs to other devices', () => {
+    const id = checkInAndPayAnna()
+    const before = useStore.getState().visitors[0].updatedAt
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        useStore.getState().reopenVisitor(id, 'Marked paid by mistake')
+        expect(useStore.getState().visitors[0].updatedAt).toBeGreaterThan(before)
+        resolve()
+      }, 2)
+    })
+  })
+
+  it('is a no-op when called on a visitor that is not checked out', () => {
+    useStore.getState().addVisitor('Anna')
+    const id = useStore.getState().visitors[0].id
+    const before = useStore.getState().visitors[0]
+    useStore.getState().reopenVisitor(id, 'Marked paid by mistake')
+    const after = useStore.getState().visitors[0]
+    expect(after.reopenHistory).toHaveLength(0)
+    expect(after.updatedAt).toBe(before.updatedAt)
+  })
+
+  it('clears pendingUndoVisitorId when reopening that visitor', () => {
+    const id = checkInAndPayAnna()
+    useStore.getState().markPendingUndo(id)
+    expect(useStore.getState().pendingUndoVisitorId).toBe(id)
+    useStore.getState().reopenVisitor(id, 'Marked paid by mistake')
+    expect(useStore.getState().pendingUndoVisitorId).toBeNull()
+  })
+
+  it('two reopens in sequence accumulate in reopenHistory', () => {
+    const id = checkInAndPayAnna()
+    useStore.getState().reopenVisitor(id, 'Marked paid by mistake')
+    // Pay again and reopen again
+    useStore.getState().checkOutVisitor(id, {
+      amountCents: 2000, paidVia: 'cash', overridden: false, kohoFriend: false,
+    })
+    useStore.getState().reopenVisitor(id, 'Wrong amount entered')
+    expect(useStore.getState().visitors[0].reopenHistory).toHaveLength(2)
+    expect(useStore.getState().visitors[0].reopenHistory[0].previousAmount).toBe(1000)
+    expect(useStore.getState().visitors[0].reopenHistory[1].previousAmount).toBe(2000)
   })
 })
 

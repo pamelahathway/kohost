@@ -44,6 +44,7 @@ function seedVisitor(stayMs: number, overrides: Partial<Visitor> = {}): Visitor 
     paidVia: null,
     amountOverridden: false,
     kohoFriend: false,
+    reopenHistory: [],
     deleted: false,
     updatedAt: Date.now(),
     deviceId: 'dev',
@@ -211,5 +212,12 @@ describe('CheckOutSheet — Mark paid', () => {
     render(<CheckOutSheet visitorId="v1" onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /mark paid/i }))
     expect(useStore.getState().visitors[0].amountOverridden).toBe(false)
+  })
+
+  it('sets pendingUndoVisitorId so the SessionScreen can show the undo toast', () => {
+    seedVisitor(THIRTY_MIN)
+    render(<CheckOutSheet visitorId="v1" onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /mark paid/i }))
+    expect(useStore.getState().pendingUndoVisitorId).toBe('v1')
   })
 })

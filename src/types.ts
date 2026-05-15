@@ -57,6 +57,15 @@ export interface CartItem {
 
 // --- Session mode (time-based entry fee) ---
 
+/** Snapshot of a payment that was undone by reopenVisitor — kept for audit. */
+export interface ReopenRecord {
+  at: number                                // ms epoch when the reopen happened
+  reason: string                            // canonical or free-text reason
+  previousAmount: number | null             // cents that were paid before reopen
+  previousPaidVia: 'cash' | 'sumup' | null
+  previousKohoFriend: boolean
+}
+
 export interface Visitor {
   id: string
   name: string
@@ -67,6 +76,7 @@ export interface Visitor {
   paidVia: 'cash' | 'sumup' | null
   amountOverridden: boolean  // true if staff edited the auto-calculated amount
   kohoFriend: boolean        // true if the staff marked this as a KoHo Friend at checkout
+  reopenHistory: ReopenRecord[] // audit trail of reopened check-outs
   deleted: boolean           // tombstone flag — kept in array so other devices learn of deletion
   updatedAt: number          // for sync conflict resolution
   deviceId: string           // which phone last wrote this record
