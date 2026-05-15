@@ -65,7 +65,10 @@ describe('ReopenSheet', () => {
   it('shows the KoHo Friend indicator when applicable', () => {
     seedPaidVisitor({ kohoFriend: true, paidAmount: 2500 })
     render(<ReopenSheet visitorId="v1" onClose={() => {}} />)
-    expect(screen.getByText(/koho friend/i)).toBeInTheDocument()
+    // "KoHo Friend" appears both in the radio reason and the summary
+    // indicator. Assert at least 2 matches (one is the new indicator).
+    const matches = screen.getAllByText(/koho friend/i)
+    expect(matches.length).toBeGreaterThanOrEqual(2)
   })
 
   it('defaults reason to "Marked paid by mistake"', () => {
