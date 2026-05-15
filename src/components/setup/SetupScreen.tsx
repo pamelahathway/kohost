@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Upload, FileJson, FileText, Trash2, ChevronDown, ChevronUp, Package, Plus, Save, Download, FolderOpen } from 'lucide-react'
+import { Upload, FileJson, FileText, ChevronDown, Package, Plus, Download } from 'lucide-react'
 import { useStore } from '../../store'
 import { MenuEditor } from './MenuEditor'
 import { GuestEditor } from './GuestEditor'
@@ -7,14 +7,7 @@ import { exportMenuJSON, importMenuJSON } from '../../utils/menuExport'
 import { exportAllCSV, exportGuestListCSV } from '../../utils/csvExport'
 import { parseGuestImport } from '../../utils/guestImport'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
-import {
-  listSavedEvents,
-  loadSavedEvent,
-  deleteSavedEvent,
-  exportEventJSON,
-  importEventJSON,
-  type SavedEventMeta,
-} from '../../utils/eventStorage'
+import { exportEventJSON, importEventJSON } from '../../utils/eventStorage'
 import { restoreFromCloud, testCloudBackup } from '../../utils/autoBackup'
 import { SessionSettings } from './SessionSettings'
 import { EventModePicker } from './EventModePicker'
@@ -24,21 +17,14 @@ interface SetupScreenProps {
 }
 
 export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
-  const { eventName, setEventName, categories, guests, orders, payments, setupComplete, setSetupComplete, saveCurrentEvent, loadEvent, startNewEvent, cloudBackupUrl, cloudBackupSecret, setCloudBackupUrl, setCloudBackupSecret, eventMode } = useStore()
+  const { eventName, setEventName, categories, guests, orders, payments, visitors, entryFeeConfig, setupComplete, setSetupComplete, loadEvent, startNewEvent, cloudBackupUrl, cloudBackupSecret, setCloudBackupUrl, setCloudBackupSecret, eventMode } = useStore()
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(eventName)
 
-  // Events section
-  const [eventsExpanded, setEventsExpanded] = useState(false)
-  const [savedEvents, setSavedEvents] = useState<SavedEventMeta[]>(listSavedEvents)
+  // Reset section
   const [startOpen, setStartOpen] = useState(false)
-  const [saveOpen, setSaveOpen] = useState(false)
-  const [saveMessage, setSaveMessage] = useState('')
-  const [confirmLoad, setConfirmLoad] = useState<SavedEventMeta | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<SavedEventMeta | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
   const startRef = useRef<HTMLDivElement>(null)
-  const saveRef = useRef<HTMLDivElement>(null)
   const eventImportRef = useRef<HTMLInputElement>(null)
 
   // Current event section
@@ -64,11 +50,10 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
       if (importOpen && importRef.current && !importRef.current.contains(e.target as Node)) setImportOpen(false)
       if (exportOpen && exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false)
       if (startOpen && startRef.current && !startRef.current.contains(e.target as Node)) setStartOpen(false)
-      if (saveOpen && saveRef.current && !saveRef.current.contains(e.target as Node)) setSaveOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [importOpen, exportOpen, startOpen, saveOpen])
+  }, [importOpen, exportOpen, startOpen])
 
   function handleSaveName() {
     if (nameInput.trim()) setEventName(nameInput.trim())
@@ -76,49 +61,8 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
   }
 
   // --- Event actions ---
-  function handleSaveEvent() {
-    saveCurrentEvent()
-    setSavedEvents(listSavedEvents())
-    setSaveMessage('Saved!')
-    setTimeout(() => setSaveMessage(''), 2000)
-    setSaveOpen(false)
-  }
-
-  function handleSaveAndExport() {
-    saveCurrentEvent()
-    setSavedEvents(listSavedEvents())
-    exportEventJSON({ eventName, categories, guests, orders, payments })
-    setSaveMessage('Saved & exported!')
-    setTimeout(() => setSaveMessage(''), 2000)
-    setSaveOpen(false)
-  }
-
-  function handleExportCurrentEvent() {
-    exportEventJSON({ eventName, categories, guests, orders, payments })
-    setSaveOpen(false)
-  }
-
-  function handleLoadEvent(meta: SavedEventMeta) {
-    const data = loadSavedEvent(meta.id)
-    if (!data) {
-      alert('Could not load event — data may be corrupted.')
-      return
-    }
-    loadEvent(data)
-    setConfirmLoad(null)
-    setNameInput(data.eventName)
-    setSavedEvents(listSavedEvents())
-  }
-
-  function handleDeleteEvent(meta: SavedEventMeta) {
-    deleteSavedEvent(meta.id)
-    setSavedEvents(listSavedEvents())
-    setConfirmDelete(null)
-  }
-
-  function handleExportSavedEvent(meta: SavedEventMeta) {
-    const data = loadSavedEvent(meta.id)
-    if (data) exportEventJSON(data)
+  function handleExportEventJSON() {
+    exportEventJSON({ eventName, eventMode, categories, guests, orders, payments, visitors, entryFeeConfig })
   }
 
   function handleNewEvent() {
@@ -241,17 +185,15 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
-        {/* ============ EVENTS SECTION ============ */}
+        {/* ============ RESET SECTION ============ */}
         <div className="border-b border-gray-200 px-6 py-4">
-          {/* Line 1: EVENTS label */}
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Events</h3>
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Reset</h3>
 
-          {/* Line 2: Start Event + Save Event dropdowns */}
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2">
             {/* Start Event dropdown */}
             <div className="relative" ref={startRef}>
               <button
-                onClick={() => { setStartOpen(!startOpen); setSaveOpen(false) }}
+                onClick={() => setStartOpen(!startOpen)}
                 className={btnClass}
               >
                 <Plus size={14} className="text-green-700" />
@@ -271,88 +213,7 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
                 </div>
               )}
             </div>
-
-            {/* Save Event dropdown — only when an event exists */}
-            {setupComplete && <div className="relative" ref={saveRef}>
-              <button
-                onClick={() => { setSaveOpen(!saveOpen); setStartOpen(false) }}
-                className={btnClass}
-              >
-                <Save size={14} className="text-green-700" />
-                {saveMessage || 'Save Event'}
-                <ChevronDown size={12} className={`transition-transform ${saveOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {saveOpen && (
-                <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-lg border border-gray-200 shadow-lg overflow-hidden z-20">
-                  <button onClick={handleSaveEvent} className={dropdownItemClass}>
-                    <Save size={16} className="text-green-700" />
-                    Save
-                  </button>
-                  <button onClick={handleSaveAndExport} className={dropdownItemClass}>
-                    <Download size={16} className="text-green-700" />
-                    Save & Export JSON
-                  </button>
-                  <div className="border-t border-gray-100" />
-                  <button onClick={handleExportCurrentEvent} className={dropdownItemClass}>
-                    <Download size={16} className="text-gray-400" />
-                    Export JSON only
-                  </button>
-                </div>
-              )}
-            </div>}
           </div>
-
-          {/* Line 3: Saved events toggle button */}
-          {savedEvents.length > 0 && (
-            <button
-              onClick={() => setEventsExpanded(!eventsExpanded)}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <FolderOpen size={14} />
-              {savedEvents.length} saved event{savedEvents.length !== 1 ? 's' : ''}
-              {eventsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-          )}
-
-          {/* Expanded saved events list */}
-          {eventsExpanded && savedEvents.length > 0 && (
-            <div className="mt-3 flex flex-col gap-2">
-              {savedEvents.map((meta) => (
-                    <div
-                      key={meta.id}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 truncate">{meta.name}</div>
-                        <div className="text-xs text-gray-400">
-                          {meta.guestCount} guest{meta.guestCount !== 1 ? 's' : ''} · {new Date(meta.savedAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setConfirmLoad(meta)}
-                        className="p-2 rounded-lg text-gray-400 hover:text-green-700 hover:bg-green-50 transition-colors"
-                        title="Load event"
-                      >
-                        <FolderOpen size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleExportSavedEvent(meta)}
-                        className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                        title="Export as JSON"
-                      >
-                        <Download size={16} />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDelete(meta)}
-                        className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))}
-            </div>
-          )}
         </div>
 
         {/* ============ CLOUD BACKUP SECTION ============ */}
@@ -469,6 +330,11 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
               </button>
               {exportOpen && (
                 <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg border border-gray-200 shadow-lg overflow-hidden z-20">
+                  <button onClick={() => { handleExportEventJSON(); setExportOpen(false) }} className={dropdownItemClass + ' font-semibold'}>
+                    <Download size={16} className="text-green-700" />
+                    Event JSON (full backup)
+                  </button>
+                  <div className="border-t border-gray-100" />
                   <button onClick={() => { exportMenuJSON(categories); setExportOpen(false) }} className={dropdownItemClass}>
                     <FileJson size={16} className="text-green-700" />
                     Menu (JSON)
@@ -482,9 +348,9 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
                     Guest List (CSV)
                   </button>
                   <div className="border-t border-gray-100" />
-                  <button onClick={() => { handleExportAll(); setExportOpen(false) }} className={dropdownItemClass + ' font-semibold'}>
+                  <button onClick={() => { handleExportAll(); setExportOpen(false) }} className={dropdownItemClass}>
                     <Package size={16} className="text-green-700" />
-                    All (Menu + Orders + Guests)
+                    Menu + Orders + Guests
                   </button>
                 </div>
               )}
@@ -535,32 +401,10 @@ export function SetupScreen({ onDone: _onDone }: SetupScreenProps) {
         />
       )}
 
-      {confirmLoad && (
-        <ConfirmDialog
-          title="Load Event"
-          message={`Load "${confirmLoad.name}"? This will replace your current event data. Make sure to save first if you want to keep it.`}
-          confirmLabel="Load Event"
-          variant="success"
-          onConfirm={() => handleLoadEvent(confirmLoad)}
-          onCancel={() => setConfirmLoad(null)}
-        />
-      )}
-
-      {confirmDelete && (
-        <ConfirmDialog
-          title="Delete Saved Event"
-          message={`Permanently delete "${confirmDelete.name}" from saved events? This cannot be undone.`}
-          confirmLabel="Delete"
-          variant="danger"
-          onConfirm={() => handleDeleteEvent(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      )}
-
       {confirmNew && (
         <ConfirmDialog
           title="New Event"
-          message="Start a fresh event? This will clear everything (menu, guests, orders). Make sure to save your current event first if you want to keep it."
+          message="Start a fresh event? This clears everything (menu, guests, orders, visitors). If you want to keep the current event, export it as JSON first (Setup → Current Event → Export → Event JSON)."
           confirmLabel="Start New Event"
           variant="danger"
           onConfirm={handleNewEvent}
