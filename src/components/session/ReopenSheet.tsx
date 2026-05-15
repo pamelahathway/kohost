@@ -13,8 +13,7 @@ interface ReopenSheetProps {
 const REASONS = [
   'Marked paid by mistake',
   'Wrong amount entered',
-  'Wrong visitor',
-  'KoHo status wrong',
+  'KoHo Friend status wrong',
   'Other',
 ] as const
 
